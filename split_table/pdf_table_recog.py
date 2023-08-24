@@ -52,6 +52,7 @@ class PDFTableRecog:
     
     def get_table_data(self):
         texts = list()
+        texts_before_table = list()
         tables = list()
         ret_obj = {}
         ret_obj["res1"] = {}
@@ -64,11 +65,11 @@ class PDFTableRecog:
         text = page.extract_text()
         
         head = EmbedingTool.get_head_index(table)[0]
-        texts.extend(self.get_text_before_table(text, table[0]))
+        texts_before_table.extend(self.get_text_before_table(text, table[0]))
         tables.append(table[head:])
         rows_before_head = table[:head]
         for row in rows_before_head:
-            texts.append(' '.join(row))
+            texts_before_table.append(' '.join(row))
             
         
         #中间页
@@ -89,9 +90,10 @@ class PDFTableRecog:
         else:
             texts.extend(text.split('\n'))
             
-        
+        for text in texts_before_table:
+            ret_obj["res1"]["outside_infos"].append({'txt':text,"before_table":True})
         for text in texts:
-            ret_obj["res1"]["outside_infos"].append({'txt':text})
+            ret_obj["res1"]["outside_infos"].append({'txt':text,"before_table":False})
         for page_index,table in enumerate(tables):
             for row_index,row in enumerate(table):
                 row_order = '{:0>3d}'.format(page_index + 1) + '_' + str(row_index + 1)

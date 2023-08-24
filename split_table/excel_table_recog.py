@@ -147,13 +147,13 @@ class ExcelTableRecog:
                         line.append(value)
                 if line:
                     line = '\t'.join(line)
-                    ret_obj["res1"]["outside_infos"].append({"txt":line})
+                    before_table = row < heads[0]
+                    ret_obj["res1"]["outside_infos"].append({"txt":line,"before_table":before_table})
+                    
         ret_obj['doc_tpye']="excel"
         ret_obj['page_sum'] = len(page_sep)-1
         return ret_obj
-    def get_tabel_row_info(self):
-        pass
-    
+
     
         
         
@@ -167,8 +167,8 @@ class ExcelTableRecog:
             
 if __name__ =="__main__":
     #etr = ExcelTableRecog("data/input/test.xls")
-    #etr = ExcelTableRecog("data/input/2022攀农业银行1-9月流水.xls")
-    etr = ExcelTableRecog("data/input/张凌玮.xlsx")
+    etr = ExcelTableRecog("data/input/2022攀农业银行1-9月流水.xls")
+    #etr = ExcelTableRecog("data/input/张凌玮.xlsx")
     #etr = ExcelTableRecog("data/alipay_record_20230727_112459.xlsx")
     obj = etr.get_table_data()
     with open('data/out.json','w',encoding='utf-8') as f:
