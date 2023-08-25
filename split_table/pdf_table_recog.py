@@ -51,7 +51,7 @@ class PDFTableRecog:
         
     
     def get_table_data(self):
-        texts = list()
+
         texts_before_table = list()
         tables = list()
         ret_obj = {}
@@ -73,27 +73,17 @@ class PDFTableRecog:
             
         
         #中间页
-        if len(self.pdf.pages)>2:
-            for page in self.pdf.pages[1:-2]:
+        if len(self.pdf.pages)>1:
+            for page in self.pdf.pages[1:]:
                 table = self.clear_table(page.extract_table())
                 if table:
                     tables.append(table)
             
-        #尾页
+        
 
-        page = self.pdf.pages[-1]
-        table = self.clear_table(page.extract_table())
-        text = page.extract_text()
-        if table:
-            tables.append(table)
-            texts.extend(self.get_text_after_table(text,table[-1]))
-        else:
-            texts.extend(text.split('\n'))
             
         for text in texts_before_table:
-            ret_obj["res1"]["outside_infos"].append({'txt':text,"before_table":True})
-        for text in texts:
-            ret_obj["res1"]["outside_infos"].append({'txt':text,"before_table":False})
+            ret_obj["res1"]["outside_infos"].append({'txt':text})
         for page_index,table in enumerate(tables):
             for row_index,row in enumerate(table):
                 row_order = '{:0>3d}'.format(page_index + 1) + '_' + str(row_index + 1)
@@ -110,7 +100,7 @@ class PDFTableRecog:
         return ret_obj
         
 if __name__ == '__main__':
-    ptr = PDFTableRecog("data/微信交易明细.pdf")
+    ptr = PDFTableRecog("data/支付宝交易明细.pdf")
     obj = ptr.get_table_data()
     with open('data/out.json','w',encoding='utf-8') as f:
         json_str = json.dump(obj,f,ensure_ascii=False)

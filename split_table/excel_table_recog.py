@@ -5,6 +5,7 @@ from config.config import CONF
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from openpyxl import load_workbook
 import  xlrd
+from copy import deepcopy
 import numpy as np
 class ExcelTableRecog:
     heads = "流水号/订单号,时间,收入,支出,备注/用途,余额/金额,对方账号,对方户名,收付款方式,开户机构/开户行,分类"
@@ -15,25 +16,9 @@ class ExcelTableRecog:
     def __init__(self,file_path):
         self.file_path = file_path
         _,ext = os.path.splitext(file_path)
-        
-        if ext ==".xls":
-            booksheet = xlrd.open_workbook(file_path,formatting_info=True).sheets()[0]
-            self.nrows = booksheet.nrows
-            self.ncols = booksheet.ncols
-            ret = [0]
-            ret.extend([brk[0] for brk in booksheet.horizontal_page_breaks])
-            ret.append(self.nrows)
-            self.page_breaks = ret
-        else:
-            booksheet = xlrd.open_workbook(file_path).sheets()[0]
-            self.nrows = booksheet.nrows
-            self.ncols = booksheet.ncols
-            wb = load_workbook(self.file_path, read_only=False)
-            ws = wb.active
-            ret = [0]
-            ret.extend([brk.id for brk in ws.row_breaks.brk])
-            ret.append(self.nrows)
-            self.page_breaks = ret
+        booksheet = xlrd.open_workbook(file_path).sheets()[0]
+        self.nrows = booksheet.nrows
+        self.ncols = booksheet.ncols
         
         self.data = list()
         for i in range(booksheet.nrows):
@@ -86,21 +71,31 @@ class ExcelTableRecog:
                 raise Exception(f"head col {j} is empty")
         return col_index_range
     def get_row_index_range(self,head_index,col_index_range):
+        is_end = True
         for i in range(head_index+1,self.nrows):
             is_table_body = False
+            in_col_count = 0
             for j in range(self.ncols):
                 value = self.data[i][j]
                 if j >=col_index_range[0] and j <col_index_range[1]:
-                    if  value:#表格内只要有一个数据就行
-                        is_table_body = True
+                    if  value:
+                        in_col_count+=1
+                        if in_col_count>=4:#表格内至少有四列不为空（时间、流水号、金额、交易方）
+                            is_table_body = True
+                            break
                         continue
                 else:
                     if value:#表格外不能有数据
                         is_table_body=False
+                        is_end = False
                         break
             if not is_table_body:
+                is_end = False
                 break
-        row_index_range = [head_index,i]
+        if is_end:
+            row_index_range = [head_index, i+1]
+        else:
+            row_index_range = [head_index,i]
         return row_index_range
     def get_table_data(self):
         heads = EmbedingTool.get_head_index(self.data)
@@ -109,23 +104,15 @@ class ExcelTableRecog:
         #heads = [24]
         col_range = self.get_col_index_range(heads[0])
         row_ranges = [self.get_row_index_range(head, col_range) for head in heads]
-        page_sep = self.page_breaks
+      
         row_infos = {}
         for table_index,row_range in enumerate(row_ranges):
             for row in range(row_range[0],row_range[1]):
-                for page_index,p in enumerate(page_sep[:-1]):
-                    if row <page_sep[page_index+1]:
-                        row_order = '{:0>3d}'.format(page_index+1)+'_'+str(row-row_range[0]+1)
-                        header_row =  row in heads
-                        row_infos[row] = {'row_order':row_order,"header_row":header_row}
-                        break
-        #for row,row_info in row_infos.items():
-        #    print(row,row_info)
-        """
-        or page_index in range(page_sep-1):
-            for row in range(page_sep[page_index],page_sep[page_index+1]):
-                pass
-        """
+                row_order = '{:0>3d}'.format(table_index+1)+'_'+str(row-row_range[0]+1)
+                header_row =  row in heads
+                row_infos[row] = {'row_order':row_order,"header_row":header_row}
+
+        
         ret_obj = {}
         ret_obj["res1"] = {}
         ret_obj["res1"]["outside_infos"] = list()
@@ -135,23 +122,21 @@ class ExcelTableRecog:
                 row_info = row_infos[row]
                 row_obj = {}
                 row_obj.update(row_info)
-                
                 for col,v in enumerate(self.data[row]):
-                    key = f"{row+1}.{col+1}"
+                    key = f"{row_info['row_order'].split('_')[1]}.{col+1}"
                     row_obj[key] = v
                 ret_obj['res2'].append(row_obj)
-            else:               #表外
+            elif row < heads[0]:                #只取首页表前面的信息
                 line =list()
                 for value in self.data[row]:
                     if value:
                         line.append(value)
                 if line:
-                    line = '\t'.join(line)
-                    before_table = row < heads[0]
-                    ret_obj["res1"]["outside_infos"].append({"txt":line,"before_table":before_table})
+                    line = ' '.join(line)
+                    ret_obj["res1"]["outside_infos"].append({"txt":line})
                     
         ret_obj['doc_tpye']="excel"
-        ret_obj['page_sum'] = len(page_sep)-1
+        ret_obj['page_sum'] = len(row_ranges)
         return ret_obj
 
     
@@ -167,8 +152,9 @@ class ExcelTableRecog:
             
 if __name__ =="__main__":
     #etr = ExcelTableRecog("data/input/test.xls")
-    etr = ExcelTableRecog("data/input/2022攀农业银行1-9月流水.xls")
-    #etr = ExcelTableRecog("data/input/张凌玮.xlsx")
+    #etr = ExcelTableRecog("data/input/2022攀农业银行1-9月流水.xls")
+    #etr = ExcelTableRecog("data/input/甘玉兰化妆品2022.7-2022.9明细.xls")
+    etr = ExcelTableRecog("data/input/张凌玮.xlsx")
     #etr = ExcelTableRecog("data/alipay_record_20230727_112459.xlsx")
     obj = etr.get_table_data()
     with open('data/out.json','w',encoding='utf-8') as f:
