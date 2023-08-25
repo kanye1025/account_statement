@@ -1,4 +1,6 @@
 from transformers import AutoModel, AutoTokenizer
+from config.config import CONF
+import torch
 from peft import PeftModel
 import re
 
@@ -6,9 +8,15 @@ import json
 
 class ChatGLM:
     peft_model = "/root/autodl-tmp/FinGPT_v31_ChatGLM2_Sentiment_Instruction_LoRA_FT"
-    tokenizer = AutoTokenizer.from_pretrained("/root/autodl-tmp/chatglm2-6b-int4", trust_remote_code=True)
-    model = AutoModel.from_pretrained("/root/autodl-tmp/chatglm2-6b-int4", trust_remote_code=True).cuda()
+    tokenizer = AutoTokenizer.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
+    model = AutoModel.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
     #model = PeftModel.from_pretrained(model, peft_model)
+    if torch.cuda.is_available():
+        print("cuda is available")
+        if CONF.GPU:
+            model = model.cuda()
+    else:
+        print("cuda is not available")
     model.eval()
     
     @classmethod
