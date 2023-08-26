@@ -1,14 +1,14 @@
 from transformers import AutoModel, AutoTokenizer
 from config.config import CONF
 import torch
-from peft import PeftModel
+#from peft import PeftModel
 from copy import deepcopy
 import re
 
 import json
 
 class ChatGLM:
-    peft_model = "/root/autodl-tmp/FinGPT_v31_ChatGLM2_Sentiment_Instruction_LoRA_FT"
+    #peft_model = "/root/autodl-tmp/FinGPT_v31_ChatGLM2_Sentiment_Instruction_LoRA_FT"
     tokenizer = AutoTokenizer.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
     model = AutoModel.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
     #model = PeftModel.from_pretrained(model, peft_model)
@@ -27,7 +27,27 @@ class ChatGLM:
         else:
             response, history = cls.model.chat(cls.tokenizer, txt, temperature=temperature, max_length=max_length)
         return response
+    
+    @classmethod
+    def predict_respond_json(cls, txt,  max_length=256, temperatures=[0.01,0.35,0.75,1]):
+        for temperature in temperatures:
+            try:
+                respond = cls.predict(txt,max_length=max_length,temperature = temperature)
+                obj = cls.analysis_json_obj(respond)
+                return obj
+            except:
+                continue
+        raise Exception(f"wrong respond:{respond}  text:{txt}")
 
+    @classmethod
+    def analysis_json_obj(cls, respond):
+        try:
+            p = r"\{[\s\S]*\}"
+            response = re.search(p, respond)
+            response = response.group()
+            return json.loads(response)
+        except Exception as e:
+            raise Exception(f"wrong respond:{respond}")
 class LLMTool:
     recog_before_info_prompts = {}
     recog_before_info_prompts["bank"] = """
@@ -107,8 +127,7 @@ class LLMTool:
         }
         prompt = deepcopy(cls.recog_before_info_prompts[agent_type])
         message = prompt.replace("{text}",text)
-        respond = ChatGLM.predict(message,top_p=0.75,max_length=8096)
-        resobj = cls.analysis_json_obj(respond)
+        resobj = ChatGLM.predict_respond_json(message,max_length=8096)
         key_pairs = cls.before_info_keys[agent_type]
         obj = {}
         for code,name in key_pairs:
@@ -118,14 +137,6 @@ class LLMTool:
                     obj[code] = account_type_dict[obj[code]]
         return obj
         
-    @classmethod
-    def analysis_json_obj(cls,respond):
-        try:
-            p = r"\{[\s\S]*\}"
-            response = re.search(p, respond)
-            response = response.group()
-            return json.loads(response)
-        except Exception as e:
-            raise Exception(f"wrong respond:{respond}")
+    
         
     
