@@ -12,32 +12,60 @@ class ChatGLM:
     tokenizer = AutoTokenizer.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
     model = AutoModel.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
     #model = PeftModel.from_pretrained(model, peft_model)
-    if torch.cuda.is_available():
-        print("cuda is available")
-        if CONF.GPU:
-            model = model.cuda()
+    if torch.cuda.is_available() and CONF.GPU:
+        model = model.cuda()
+        device = torch.device("cuda")
+        print("use gpu ")
     else:
-        print("cuda is not available")
+        model= model.float()
+        device = torch.device("cpu")
+        print("use cpu")
     model.eval()
-    
     @classmethod
-    def predict(cls, txt, top_p=None, max_length=256, temperature=0.75):
+    def predict(cls, txt, max_length=256, temperature=0.75,do_sample = True,**kwargs):
+        inputs = cls.tokenizer([txt], return_tensors="pt").to(cls.device)
+        gen_kwargs = {"max_length":  max_length, "do_sample": do_sample,
+                      "temperature": temperature, **kwargs}
+        outputs = cls.model.generate(**inputs, **gen_kwargs)
+        outputs = outputs.tolist()[0][len(inputs["input_ids"][0]):]
+        response = cls.tokenizer.decode(outputs)
+        response = cls.process_response(response)
+        '''
         if top_p:
-            response, history = cls.model.chat(cls.tokenizer, txt, top_p=top_p, max_length=max_length)
+            response, history = cls.model.generate(cls.tokenizer, txt, top_p=top_p, max_length=max_length,do_sample = do_sample)
         else:
-            response, history = cls.model.chat(cls.tokenizer, txt, temperature=temperature, max_length=max_length)
+            response, history = cls.model.generate(cls.tokenizer, txt, temperature=temperature, max_length=max_length,do_sample = do_sample)
+        '''
         return response
-    
+
+    @classmethod
+    def process_response(cls, response):
+        response = response.strip()
+        response = response.replace("[[训练时间]]", "2023年")
+        punkts = [
+            [",", "，"],
+            ["!", "！"],
+            [":", "："],
+            [";", "；"],
+            ["\?", "？"],
+        ]
+        for item in punkts:
+            response = re.sub(r"([\u4e00-\u9fff])%s" % item[0], r"\1%s" % item[1], response)
+            response = re.sub(r"%s([\u4e00-\u9fff])" % item[0], r"%s\1" % item[1], response)
+        return response
     @classmethod
     def predict_respond_json(cls, txt,  max_length=256, temperatures=[0.01,0.35,0.75,1]):
+        txt = "问:"+txt+"\n\n答:好的，返回的json数据为\n```{"
         for temperature in temperatures:
             try:
-                respond = cls.predict(txt,max_length=max_length,temperature = temperature)
+                respond = cls.predict(txt,max_length=max_length,temperature = temperature,do_sample = False)
+                respond = '{'+respond
                 obj = cls.analysis_json_obj(respond)
                 return obj
-            except:
+            except Exception as e :
+                print(e.args)
                 continue
-        raise Exception(f"wrong respond:{respond}  text:{txt}")
+        raise Exception(f"wrong respond:  text:{txt}")
 
     @classmethod
     def analysis_json_obj(cls, respond):
