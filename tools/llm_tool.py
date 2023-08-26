@@ -2,6 +2,7 @@ from transformers import AutoModel, AutoTokenizer
 from config.config import CONF
 import torch
 from peft import PeftModel
+from copy import deepcopy
 import re
 
 import json
@@ -26,55 +27,56 @@ class ChatGLM:
         else:
             response, history = cls.model.chat(cls.tokenizer, txt, temperature=temperature, max_length=max_length)
         return response
+
 class LLMTool:
     recog_before_info_prompts = {}
     recog_before_info_prompts["bank"] = """
-    请在下列文本信息中识别银行名称，银行账号，账户名，账户类型（公司/个人），
-    并以如下json格式返回
-    ```json
-    {
-    "银行名称":"",
-    "银行账号":"",
-    "账户名":"",
-    "账户类型":""
-    }
-    文本信息开始【
-    {text}
-    】文本信息结束
-    请只返回json数据
-    """
+请在下列文本信息中识别银行名称，银行账号，账户名，账户类型（公司/个人），
+并返回如下json格式数据
+```json格式
+{
+"银行名称":"",
+"银行账号":"",
+"账户名":"",
+"账户类型":""
+}```
+文本信息开始【
+{text}
+】文本信息结束
+必须返回json格式，未识别的字段请给""
+"""
     
     recog_before_info_prompts["alipay"] = """
-    请在下列文本信息中识别支付宝账户，姓名，身份证号码，账户类型（对公/对私），
-    并以如下json格式返回
-    ```json
-    {
-    "支付宝账户":"",
-    "姓名":"",
-    "身份证号码":"",
-    "账户类型":""
-    }
-    文本信息开始【
-    {text}
-    】文本信息结束
-    请只返回json数据
-    """
+请在下列文本信息中识别支付宝账户，姓名，身份证号码，账户类型（公司/个人），
+并返回如下json格式数据
+```json格式
+{
+"支付宝账户":"",
+"姓名":"",
+"身份证号码":"",
+"账户类型":""
+}```
+文本信息开始【
+{text}
+】文本信息结束
+必须返回json格式，未识别的字段请给""
+"""
     
     recog_before_info_prompts["wechat"] = """
-    请在下列文本信息中识别微信账号，姓名，身份证号，账户类型（对公/对私），
-    并以如下json格式返回
-    ```json
-    {
-    "微信账号":"",
-    "姓名":"",
-    "身份证号":"",
-    "账户类型":""
-    }
-    文本信息开始【
-    {text}
-    】文本信息结束
-    请只返回json数据
-    """
+请在下列文本信息中识别微信账号，姓名，身份证号，账户类型（公司/个人），
+并返回如下json格式数据
+```json格式
+{
+"微信账号":"",
+"姓名":"",
+"身份证号":"",
+"账户类型":""
+}```
+文本信息开始【
+{text}
+】文本信息结束
+必须返回json格式，未识别的字段请给""
+"""
     
     before_info_keys = {
         "bank":[
@@ -103,7 +105,7 @@ class LLMTool:
             "公司":"对公",
             "":""
         }
-        prompt = cls.recog_before_info_prompts[agent_type]
+        prompt = deepcopy(cls.recog_before_info_prompts[agent_type])
         message = prompt.replace("{text}",text)
         respond = ChatGLM.predict(message,top_p=0.75,max_length=8096)
         resobj = cls.analysis_json_obj(respond)
@@ -118,9 +120,12 @@ class LLMTool:
         
     @classmethod
     def analysis_json_obj(cls,respond):
-        p = r"\{[\s\S]*\}"
-        response = re.search(p, respond)
-        response = response.group()
-        return json.loads(response)
+        try:
+            p = r"\{[\s\S]*\}"
+            response = re.search(p, respond)
+            response = response.group()
+            return json.loads(response)
+        except Exception as e:
+            raise Exception(f"wrong respond:{respond}")
         
     

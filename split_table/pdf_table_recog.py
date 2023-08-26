@@ -93,7 +93,7 @@ class PDFTableRecog:
                     if not v:
                         v = ''
                     k = f'{row_index+1}.{col_index+1}'
-                    row_obj[k] = v.replace('\n','')
+                    row_obj[k] = v.replace('\n',' ')
                 ret_obj['res2'].append(row_obj)
         ret_obj['doc_tpye'] = "epdf"
         ret_obj['page_sum'] = len(self.pdf.pages)
