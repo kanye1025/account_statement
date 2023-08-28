@@ -1,5 +1,6 @@
 from transformers import AutoModel, AutoTokenizer
 from config.config import CONF
+from config import dicts
 import torch
 #from peft import PeftModel
 from copy import deepcopy
@@ -163,6 +164,9 @@ class LLMTool:
                 obj[code] = resobj[name]
                 if code == "account_type":
                     obj[code] = account_type_dict[obj[code]]
+                else:
+                    obj[code] = ""
+        
         return obj
         
     

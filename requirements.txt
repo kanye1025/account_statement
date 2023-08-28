@@ -9,3 +9,6 @@ cpm_kernels
 mdtex2html
 sentencepiece
 accelerate
+python-Levenshtein
+pdfplumber
+sentence_transformers
