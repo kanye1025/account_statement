@@ -8,8 +8,8 @@ import json
 import requests
 
 
-def res1(file_path,ip='127.0.0.1',port=8000):
-    url = f"http://{ip}:{port}/res1"
+def form_recognition(file_path,ip='127.0.0.1',port=8000):
+    url = f"http://{ip}:{port}/form_recognition"
     _,file_name = os.path.split(file_path)
     with open(file_path ,'rb') as f:
         #file_data = f.read()

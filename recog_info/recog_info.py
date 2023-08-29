@@ -7,12 +7,19 @@ from config import dicts
 import Levenshtein
 import datetime
 class RecogInfo:
+    date_formats = ["%Y-%m-%d%H:%M:%S",
+                    "%Y-%m-%d",
+                    "%Y-%m-%d%H:%M:%S.%f",
+                    "%Y/%m/%d%H:%M:%S",
+                    "%Y/%m/%d",
+                    "%Y/%m/%d%H:%M:%S.%f",
+                    ]
     def __init__(self,obj):
         self.obj = obj
         self.texts = '\n'.join([i['txt'] for i in obj['res1']['outside_infos']])
         if not self.texts.replace('\n', '').replace(' ', '').replace('\t', ''):
             self.texts = None
-    
+        
     def get_agent(self):
         
         if not self.texts:
@@ -165,20 +172,21 @@ class RecogInfo:
                 else:
                     res3_row[index3] = row_obj[key].replace(' ',"")
                     if key == "交易日期":
-                        res3_row["index3"] = self.normalize_date_format(res3_row["index3"])
+                        res3_row[index3] = self.normalize_date_format(res3_row[index3])
             self.obj["res3"].append(res3_row)
             
     def get_before_info(self):
         if self.texts:
             obj = LLMTool.recog_before_info(self.agent,self.texts)
-            if self.agent == "bank" and obj["bank_name"] in dicts.bank_code_dict:
-                obj["bank_name"] = dicts.bank_code_dict[obj["bank_name"]]
-            else:
-                l = [(k,code,Levenshtein.distance(obj["bank_name"], k))for k ,code in dicts.dicts.bank_code_dict.items()]
-                min_distance = min([d for (_,_,d) in l])
-                for k,code,d in l:
-                    if d == min_distance:
-                        obj["bank_name"] = code
+            if self.agent == "bank" :
+                if obj["bank_name"] in dicts.bank_code_dict:
+                    obj["bank_name"] = dicts.bank_code_dict[obj["bank_name"]]
+                else:
+                    l = [(k,code,Levenshtein.distance(obj["bank_name"], k))for k ,code in dicts.bank_code_dict.items()]
+                    min_distance = min([d for (_,_,d) in l])
+                    for k,code,d in l:
+                        if d == min_distance:
+                            obj["bank_name"] = code
             self.obj['res1'].update(obj)
             
         
@@ -189,14 +197,8 @@ class RecogInfo:
         return self.obj
         
     def normalize_date_format(self,date_str):
-        date_formats = ["%Y-%m-%d%H:%M:%S",
-                        "%Y-%m-%d",
-                        "%Y-%m-%d%H:%M:%S.%f",
-                        "%Y/%m/%d%H:%M:%S",
-                        "%Y/%m/%d",
-                        "%Y/%m/%d%H:%M:%S.%f",
-                        ]
-        for format_str in date_formats:
+        
+        for format_str in self.date_formats:
             try:
                 dt = datetime.datetime.strptime(date_str,format_str)
                 date_str = dt.strftime("%Y/%m/%d")
@@ -209,7 +211,7 @@ class RecogInfo:
         #def
 if __name__ == "__main__":
     #file_path = "data/output/张凌玮.xlsx.txt"
-    file_path = "data/output/支付宝2.pdf.txt"
+    file_path = "data/output/支付宝1.pdf.txt"
     #file_path = "data/output/李佳蔚.xlsx.txt"
     with open(file_path,'r',encoding="utf-8") as f:
         with open ('data/out.json','w',encoding='utf-8') as fo:
