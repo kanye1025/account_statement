@@ -1,13 +1,17 @@
 import json
 
+from io import BytesIO
 import pdfplumber
 from tools.embeding_tool import EmbedingTool
 import numpy as np
 class PDFTableRecog:
 
-    def __init__(self,file_path):
-        self.file_path = file_path
-        self.pdf = pdfplumber.open(file_path)
+    def __init__(self,file_path,byteio = None):
+        if byteio:
+            self.pdf = pdfplumber.open(BytesIO(byteio))
+        else:
+            self.pdf = pdfplumber.open(file_path)
+
     def clear_table(self,table):
         if  table:
             for i,row in enumerate(table):

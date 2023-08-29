@@ -6,6 +6,7 @@ from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from openpyxl import load_workbook
 import  xlrd
 from copy import deepcopy
+from io import StringIO
 import numpy as np
 class ExcelTableRecog:
     heads = "流水号/订单号,时间,收入,支出,备注/用途,余额/金额,对方账号,对方户名,收付款方式,开户机构/开户行,分类"
@@ -13,10 +14,14 @@ class ExcelTableRecog:
     #h_emb = embeding.embed_query(heads)
     #h_emb = None
     #embeding = None
-    def __init__(self,file_path):
-        self.file_path = file_path
-        _,ext = os.path.splitext(file_path)
-        booksheet = xlrd.open_workbook(file_path).sheets()[0]
+    def __init__(self,file_path,byte = None):
+        if byte:
+            byte = byte.decode()
+            
+            booksheet = xlrd.open_workbook(file_contents = byte).sheets()[0]
+        else:
+            booksheet = xlrd.open_workbook(file_path).sheets()[0]
+        #xlrd.
         self.nrows = booksheet.nrows
         self.ncols = booksheet.ncols
         
