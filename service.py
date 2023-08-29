@@ -13,7 +13,7 @@ app = flask.Flask(__name__)
 
 
 ROOT_PATH = '/'
-
+'''
 def _form_recognition(file_path):
     _,ext = os.path.splitext(file_path)
     if ext not in ('.pdf','.xls','.xlsx'):
@@ -23,16 +23,25 @@ def _form_recognition(file_path):
     obj = TableRecog(file_path).get_table_data()
     res = {"code":300,"message":"Success","data":obj}
     return res
+'''
+def _form_recognition(file_path,file_data):
+    _,ext = os.path.splitext(file_path)
+    if ext not in ('.pdf','.xls','.xlsx'):
+        return {"code":301,"message":"Type error"}
+    #data['file_data'] =   bytes(data['file_data'], encoding = "utf-8")
+
+    obj = TableRecog(file_path,file_data).get_table_data()
+    res = {"code":300,"message":"Success","data":obj}
+    return res
 
 
-@app.route(ROOT_PATH+'form_recognition/', methods=[ 'POST','GET'], strict_slashes=False)
+@app.route(ROOT_PATH+'form_recognition/', methods=[ 'POST','GET'])
 def form_recognition():
     try:
-        fileStorage = request.files["file"]
-        file_path = os.path.join(CONF.tmp_path, fileStorage.filename)
-        fileStorage.save(file_path)
-        res = _form_recognition(file_path)
-        os.remove(file_path)
+        file_path = request.form["info"]
+        file_data = request.form["data"]
+        file_data =  base64.b64decode(file_data)
+        res = _form_recognition(file_path,file_data)
         return json.dumps(res,ensure_ascii=False)
     except Exception as e:
         msg = traceback.format_exc()

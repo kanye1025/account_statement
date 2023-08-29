@@ -60,18 +60,22 @@ class EmbedingTool:
     agent_embeding = EmbedingToolBasic.get_embeding_dict(dicts.agent_dict)
     
     field_embeding = {}
-    
     for agent,key_dict in  dicts.field_dict.items():
         field_embeding[agent] = EmbedingToolBasic.get_embeding_dict(key_dict,is_query=True)
-    
-    
-    
+    account_label_embeding= {}
+    for pay_type,label_dict in dicts.account_label_dict.items():
+        account_label_embeding[pay_type] = EmbedingToolBasic.get_embeding_dict(label_dict)
+        
     bank_field_type_split_embeding = {k: EmbedingToolBasic.get_embeding_list(v,is_query=True) for k,v in dicts.bank_field_type_split.items()}
     bank_field_type_join_embeding = EmbedingToolBasic.get_embeding_dict(dicts.bank_field_type_join)
     alipay_field_type_split_embeding = {k: EmbedingToolBasic.get_embeding_list(v, is_query=True) for k, v in
                                       dicts.alipay_field_type_split.items()}
     alipay_field_type_join_embeding = EmbedingToolBasic.get_embeding_dict(dicts.alipay_field_type_join)
 
+    @classmethod
+    def get_account_label(cls,pay_type,text):
+        class_embeding = cls.account_label_embeding[pay_type]
+        return EmbedingToolBasic.classify_by_embeding_dict(class_embeding,text=text)
     @classmethod
     def get_bank_type(cls,head_dict):
         head_embeding_dict = EmbedingToolBasic.get_embeding_dict(head_dict)

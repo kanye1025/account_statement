@@ -16,7 +16,7 @@ class ExcelTableRecog:
     #embeding = None
     def __init__(self,file_path,byte = None):
         if byte:
-            byte = byte.decode()
+            #byte = byte.decode()
             
             booksheet = xlrd.open_workbook(file_contents = byte).sheets()[0]
         else:

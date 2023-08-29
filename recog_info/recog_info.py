@@ -19,7 +19,9 @@ class RecogInfo:
         self.texts = '\n'.join([i['txt'] for i in obj['res1']['outside_infos']])
         if not self.texts.replace('\n', '').replace(' ', '').replace('\t', ''):
             self.texts = None
-        
+    def str_to_float(self,s):
+        s = s.replace(',','')
+        return float(s)
     def get_agent(self):
         
         if not self.texts:
@@ -69,10 +71,10 @@ class RecogInfo:
             else:
                 row_obj["收支类型"] = "收入"
         elif bank_type in ("bank_IE_split_amount" ,"bank_IE_split_remaining"):
-            if not row_obj["支出"] or not float(row_obj["支出"]):
+            if not row_obj["支出"] or not self.str_to_float(row_obj["支出"]):
                 row_obj["收支类型"] = "收入"
                 row_obj["交易金额"] = row_obj["收入"]
-            elif not row_obj["收入"] or not float(row_obj["收入"]):
+            elif not row_obj["收入"] or not self.str_to_float(row_obj["收入"]):
                 row_obj["收支类型"] = "支出"
                 row_obj["交易金额"] = row_obj["支出"]
             else:
@@ -102,16 +104,15 @@ class RecogInfo:
         return row_obj
     def trans_alipay_row(self,alipay_type,row_obj,account,id):
         if alipay_type == "alipay_IE_split":
-            if not row_obj["支出"] or not float(row_obj["支出"]):
+            if not row_obj["支出"] or not self.str_to_float(row_obj["支出"]):
                 row_obj["收/支"] = "收入"
                 row_obj["金额"] = row_obj["收入"]
-            elif not row_obj["收入"] or not float(row_obj["收入"]):
+            elif not row_obj["收入"] or not self.str_to_float(row_obj["收入"]):
                 row_obj["收/支"] = "支出"
                 row_obj["金额"] = row_obj["支出"]
             else:
                 raise Exception("收入，支出同时存在")
             row_obj["交易对方"] = ""
-            row_obj["收/付款方式"] = ""
             del row_obj["收入"]
             del row_obj["支出"]
         elif alipay_type == "alipay_IE_type":
@@ -159,22 +160,26 @@ class RecogInfo:
             row_obj = {}
             for field, col_index in field_index_dict.items():
                 index2 = row2_index + '.' + col_index
-                row_obj[field] =res2_row[index2]
+                row_obj[field] =res2_row[index2].replace(' ','')
+            
             if agent_type == 'bank' and not res2_row["header_row"]:
                 row_obj = self.trans_bank_row(sub_type,row_obj,account,id)
             elif agent_type == 'alipay' and not res2_row["header_row"]:
                 row_obj = self.trans_alipay_row(sub_type, row_obj, account, id)
-                
-            for i,key in enumerate(dicts.field_dict[agent_type].keys()):
+            row_obj["科目标签"] = self.predict_account_label(row_obj) if not res3_row["header_row"] else "科目标签"
+            field_list = list(dicts.field_dict[agent_type].keys())
+            field_list.append("科目标签")
+            
+            for i,key in enumerate(field_list):
                 index3 = row2_index + '.' + str(i + 1)
                 if res2_row["header_row"]:
                     res3_row[index3] = key
                 else:
-                    res3_row[index3] = row_obj[key].replace(' ',"")
+                    res3_row[index3] = row_obj[key]
                     if key == "交易日期":
                         res3_row[index3] = self.normalize_date_format(res3_row[index3])
             self.obj["res3"].append(res3_row)
-            
+    
     def get_before_info(self):
         if self.texts:
             obj = LLMTool.recog_before_info(self.agent,self.texts)
@@ -189,7 +194,21 @@ class RecogInfo:
                             obj["bank_name"] = code
             self.obj['res1'].update(obj)
             
-        
+    
+    def predict_account_label(self,row_obj):
+        if self.agent =="bank":
+            pay_type = row_obj["收支类型"]
+            text = row_obj["备注（摘要）"]+' '+row_obj["对方户名"]
+        elif self.agent =="alipay":
+            pay_type = row_obj["收/支"]
+            text = row_obj["交易对方"]+' '+row_obj["商品说明"]
+        elif self.agent == "wechat":
+            pay_type = row_obj["收/支/其他"]
+            text = row_obj["交易类型"] +' '+row_obj["交易对方"]+ ' '+row_obj["交易方式"]
+        if pay_type =="其他":
+            return ""
+        return EmbedingTool.get_account_label(pay_type,text)
+    
     def get_recoged_obj(self):
         self.get_agent()
         self.get_before_info()
@@ -197,7 +216,6 @@ class RecogInfo:
         return self.obj
         
     def normalize_date_format(self,date_str):
-        
         for format_str in self.date_formats:
             try:
                 dt = datetime.datetime.strptime(date_str,format_str)
@@ -207,11 +225,9 @@ class RecogInfo:
                 pass
         raise Exception(f"cannot normalize date format: {date_str}")
         
-        
-        #def
 if __name__ == "__main__":
-    #file_path = "data/output/张凌玮.xlsx.txt"
-    file_path = "data/output/支付宝1.pdf.txt"
+    file_path = "data/output/张凌玮.xlsx.txt"
+    #file_path = "data/output/支付宝1.pdf.txt"
     #file_path = "data/output/李佳蔚.xlsx.txt"
     with open(file_path,'r',encoding="utf-8") as f:
         with open ('data/out.json','w',encoding='utf-8') as fo:
