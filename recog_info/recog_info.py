@@ -167,8 +167,9 @@ class RecogInfo:
             elif agent_type == 'alipay' and not res2_row["header_row"]:
                 row_obj = self.trans_alipay_row(sub_type, row_obj, account, id)
             row_obj["科目标签"] = self.predict_account_label(row_obj) if not res3_row["header_row"] else "科目标签"
+            row_obj["分录方向"] = self.get_accounting_entry(row_obj) if not res3_row["header_row"] else "分录方向"
             field_list = list(dicts.field_dict[agent_type].keys())
-            field_list.append("科目标签")
+            field_list.extend(["科目标签","分录方向"])
             
             for i,key in enumerate(field_list):
                 index3 = row2_index + '.' + str(i + 1)
@@ -194,7 +195,13 @@ class RecogInfo:
                             obj["bank_name"] = code
             self.obj['res1'].update(obj)
             
-    
+    def get_accounting_entry(self,row_obj):
+        pay_type = dicts.pay_type_dict[self.agent]
+        if not row_obj[pay_type] or row_obj[pay_type]=="其他":
+            return ""
+        if not row_obj["科目标签"] :return ""
+        key = f"""{row_obj["科目标签"]},{row_obj[pay_type]}"""
+        return dicts.accounting_entry_dict[key]
     def predict_account_label(self,row_obj):
         if self.agent =="bank":
             pay_type = row_obj["收支类型"]

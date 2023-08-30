@@ -139,3 +139,27 @@ account_label_dict = {
         }
 }
 
+pay_type_dict = {
+    "alipay":"收/支",
+    "wechat": "收/支/其他",
+    "bank":"收支类型"
+}
+
+accounting_entry_dict_ = {
+    "减小":[
+        "应收,收入","应付,支出","借款类负债,支出"
+    ],
+    "增加":[
+        "应收,支出","债权类资产,支出","储蓄类资产,支出","处置类资产,支出","股权类资产,支出",
+        "固定资产,支出","无形资产,支出","应付,收入","往来,收入","借款类负债,收入","经营支出,支出",
+        "信贷支出,支出","消费支出,支出","健康支出,支出","娱乐支出,支出","其他支出,支出","经营收入,收入",
+        "营业外收入,收入","实收资本,收入"
+    ]
+}
+
+accounting_entry_dict = dict()
+
+for accounting_entry,keys in accounting_entry_dict_.items():
+    for k in keys:
+        accounting_entry_dict[k] =accounting_entry
+del accounting_entry_dict_
