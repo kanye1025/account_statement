@@ -2,7 +2,7 @@ from toolkit.utils.data_file import DataFile
 head = "流水号/订单号,时间,收入,支出,备注/用途,余额/金额,对方账号,对方户名,收付款方式,开户机构/开户行,分类"
 agent_dict = {"bank": "银行,bank", "alipay": "支付宝,alipay", "wechat": "微信,wechat"}
 field_dict = {
-    "bank_IE_split_amount":    {
+    "bank_IE_split":    {
         "交易日期":   "交易日期,记录日期,日期,时间",
         "支出":     "支出,支出金额",
         "收入":     "收入,收入金额",
@@ -28,7 +28,7 @@ field_dict = {
         "对方账号":   "对方账号",
         "对方户名":   "对方户名"
     },
-    "bank_IE_split_remaining": {
+    "bank_IE_split": {
         "交易日期":   "交易日期,记录日期,日期,时间",
         "支出":     "支出,支出金额",
         "收入":     "收入,收入金额",

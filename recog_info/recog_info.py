@@ -11,12 +11,13 @@ from tools.embeding_tool import *
 class RecogInfo:
     date_formats = ["%Y-%m-%d%H:%M:%S",
                     "%Y-%m-%d",
-                    "%Y-%m-%d%H:%M:%S.%f",
+                    #"%Y-%m-%d%H:%M:%S.%f",
                     "%Y/%m/%d%H:%M:%S",
                     "%Y/%m/%d",
-                    "%Y/%m/%d%H:%M:%S.%f",
+                    #"%Y/%m/%d%H:%M:%S.%f",
                     "%Y%m%d",
                     "%Y%m%d%H%M%S",
+                    "%Y%m%d%H:%M:%S",
                     
                     ]
     def __init__(self,obj):
@@ -42,6 +43,7 @@ class RecogInfo:
         self.obj['res1']['agent_type'] = agent
         self.agent = agent
     def recog_field_sub_type(self,head_list):
+        head_list = [head.replace("支取","支出") for head in head_list]
         def get_index(field):
             for index,head in enumerate(head_list):
                 if field in head:return index
@@ -68,7 +70,7 @@ class RecogInfo:
             if "时间" in v:
                 head_dict[k]+=",时间"
         """
-        sub_type = agent_type +"_"+ self.recog_field_sub_type(head_dict.keys())
+        sub_type = agent_type +"_"+ self.recog_field_sub_type(head_value_dict.keys())
         if agent_type == 'bank':
             field_index_dict = EmbedingTool.recog_field(sub_type, head_dict)
         elif agent_type == "alipay":
@@ -99,7 +101,7 @@ class RecogInfo:
                 row_obj["收支类型"] = "支出"
             else:
                 row_obj["收支类型"] = "收入"
-        elif bank_type in ("bank_IE_split_amount" ,"bank_IE_split_remaining"):
+        elif bank_type == "bank_IE_split":
             if not row_obj["支出"] or not self.str_to_float(row_obj["支出"]):
                 row_obj["收支类型"] = "收入"
                 row_obj["交易金额"] = row_obj["收入"]
@@ -241,6 +243,10 @@ class RecogInfo:
                     res3_row[index3] = row_obj[key]
                     if key == "交易日期":
                         res3_row[index3] = self.normalize_date_format(res3_row[index3])
+                    elif "金额" in key or "余额" in key:
+
+                        res3_row[index3] = self.normalize_money_format(res3_row[index3])
+                        
             self.obj["res3"].append(res3_row)
     
     def get_before_info(self):
@@ -276,8 +282,7 @@ class RecogInfo:
         elif self.agent == "wechat":
             pay_type = row_obj["收/支/其他"]
             text = row_obj["交易类型"] +' '+row_obj["交易对方"]+ ' '+row_obj["交易方式"]
-        if pay_type =="其他":
-            return ""
+        
         return EmbedingTool.get_account_label(pay_type,text)
     
     def get_recoged_obj(self):
@@ -285,8 +290,9 @@ class RecogInfo:
         self.get_before_info()
         self.field_align()
         return self.obj
-        
+    
     def normalize_date_format(self,date_str):
+        date_str = date_str.split(".")[0]
         for format_str in self.date_formats:
             try:
                 dt = datetime.datetime.strptime(date_str,format_str)
@@ -294,10 +300,24 @@ class RecogInfo:
                 return date_str
             except:
                 pass
+        try:
+            date =  float(date_str)
+            date = datetime.datetime(year=1899,month=12,day=30)+datetime.timedelta(days=date)
+            return date.strftime("%Y/%m/%d")
+        except:
+            pass
         raise Exception(f"cannot normalize date format: {date_str}")
         
+    def normalize_money_format(self,money_str):
+        money_str = money_str.replace(',','')
+        
+        try:
+            money =  float(money_str)
+            return money
+        except:
+            raise Exception(f"money normalize failed: {money_str}")
 if __name__ == "__main__":
-    file_path = "data/output/1672046917570_1364021.pdf.txt"
+    file_path = "data/output/甘玉兰化妆品2022.7-2022.9明细.xls.txt"
     #file_path = "data/output/支付宝1.pdf.txt"
     #file_path = "data/output/李佳蔚.xlsx.txt"
     EmbedingToolBasic.init()

@@ -122,6 +122,7 @@ class EmbedingTool:
         return EmbedingToolBasic.classify_by_embeding_dict(cls.person_organization_embeding,text)
     @classmethod
     def get_account_label(cls,pay_type,text):
+        if pay_type not in cls.account_label_embeding:return ""
         class_embeding = cls.account_label_embeding[pay_type]
         return EmbedingToolBasic.classify_by_embeding_dict(class_embeding,text=text)
     @classmethod
