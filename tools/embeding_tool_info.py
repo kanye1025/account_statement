@@ -1,4 +1,5 @@
 from tools.embeding_tool import *
+from config.load_org_type_dict import get_org_type_dict
 class EmbedingToolInfo:
     inited = False
     
@@ -24,11 +25,15 @@ class EmbedingToolInfo:
             cls.alipay_field_type_join_embeding = EmbedingToolBasic.get_embeding_dict(dicts.alipay_field_type_join)
             
             cls.person_organization_embeding = EmbedingToolBasic.get_embeding_dict(dicts.person_organization_dict)
-    
+            cls.org_code_name_dict,org_code_desc_dict = get_org_type_dict()
+            cls.org_type_embeding = EmbedingToolBasic.get_embeding_dict(org_code_desc_dict)
     @classmethod
     def person_or_org(cls, text):
         return EmbedingToolBasic.classify_by_embeding_dict(cls.person_organization_embeding, text)
-    
+    @classmethod
+    def get_org_type(cls,text):
+        code = EmbedingToolBasic.classify_by_embeding_dict(cls.org_type_embeding,text=text)
+        return code,cls.org_code_name_dict[code]
     @classmethod
     def get_account_label(cls, pay_type, text):
         if pay_type not in cls.account_label_embeding: return ""

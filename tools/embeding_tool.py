@@ -7,8 +7,8 @@ class EmbedingToolBasic:
     embeding = None
     @classmethod
     def init(cls):
-        cls.device = 'cuda' if CONF.GPU else 'cpu'
         if not cls.embeding :
+            cls.device = 'cuda' if CONF.GPU else 'cpu'
             cls.embeding = HuggingFaceEmbeddings(model_name=CONF.embeding_model_path, model_kwargs={'device': cls.device})
     @classmethod
     def detect_text_in_list(cls,query,candidates):

@@ -1,6 +1,6 @@
 # coding=utf-8
 import json
-from tools.embeding_tool_info import EmbedingToolInfo as EmbedingToolInfo
+from tools.embeding_tool_info import EmbedingToolInfo as EmbedingTool
 from tools.llm_tool import LLMTool
 from collections import Counter
 from config import dicts
@@ -21,7 +21,7 @@ class RecogInfo:
                     
                     ]
     def __init__(self,obj):
-        EmbedingToolInfo.init()
+        EmbedingTool.init()
         self.obj = obj
         self.texts = '\n'.join([i['txt'] for i in obj['res1']['outside_infos']])
         if not self.texts.replace('\n', '').replace(' ', '').replace('\t', ''):
@@ -172,7 +172,6 @@ class RecogInfo:
         for row in self.obj["res2"]:
             if not row["header_row"]:
                 for k,v in row.items() :
-                    
                     if '.' in k:
                         k = k.split('.')[1]
                         if k  in head_dict and k not in sample_dict  :
@@ -188,8 +187,26 @@ class RecogInfo:
                 ret_obj[head] = sample_dict[k]
             
         return ret_obj
+    
+    def person_or_org(self,text):
         
-            
+        score_dict = {k:v for k,v in EmbedingToolBasic.classify_by_embeding_dict(EmbedingTool.person_organization_embeding, text,top_k = 2)}
+        if len(text)<=3 and "支付" not in text and "微信" not in text and "财付通" not in text:
+            score_dict["PERSON"] +=0.1
+        return sorted([(k,v)for k,v in score_dict.items()],key=lambda x:x[1],reverse=True)[0][0]
+        
+    def get_org_type(self,agent_type,row_obj):
+        
+        counterparty_key = "对方户名" if agent_type == "bank" else "交易对方"
+        counterparty = row_obj[counterparty_key]
+        if not counterparty: return "",""
+        #if EmbedingTool.person_or_org(counterparty) != "ORG":
+        if self.person_or_org(counterparty) != "ORG":
+            return "",""
+
+        #counterparty = counterparty.replace()
+        return EmbedingTool.get_org_type(counterparty)
+
     def field_align(self):
         agent_type = self.obj["res1"]['agent_type']
         self.obj["res3"] = list()
@@ -233,6 +250,8 @@ class RecogInfo:
             
             row_obj["科目标签"] = self.predict_account_label(row_obj) if not res3_row["header_row"] else "科目标签"
             row_obj["分录方向"] = self.get_accounting_entry(row_obj) if not res3_row["header_row"] else "分录方向"
+            row_obj["机构属性代码"],row_obj["机构属性名称"] = self.get_org_type(agent_type,row_obj) if not res3_row["header_row"] else ("机构属性代码","机构属性名称")
+            
             field_list = list(dicts.field_code_name_dict[agent_type].values())
             field_list.extend(["科目标签","分录方向"])
             
@@ -254,7 +273,7 @@ class RecogInfo:
         if self.texts:
             obj = LLMTool.recog_before_info(self.agent,self.texts)
             if not obj["account_type"]:
-                obj["account_type"] = EmbedingTool.person_or_org(obj["account_name"])
+                obj["account_type"] = self.person_or_org(obj["account_name"])
             if self.agent == "bank" :
                 if obj["bank_name"] in dicts.bank_code_dict:
                     obj["bank_name"] = dicts.bank_code_dict[obj["bank_name"]]
