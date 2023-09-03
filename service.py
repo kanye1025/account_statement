@@ -6,6 +6,7 @@ from flask import request
 import traceback
 import logging
 import base64
+from tools.embeding_tool import EmbedingTool,EmbedingToolBasic
 from split_table.table_recog import TableRecog
 from config.config import CONF
 from io import BytesIO
@@ -48,8 +49,14 @@ def form_recognition():
         logging.error("res1 ERROR request:" + str(request.data)+'  traceback:'+msg)
         return {"code": -1, "message": msg}
 
-def run(port = 8000):
-    print(port)
+def run(port = 8000,device = None):
+    if device not in (None,'GPU','CPU'):
+        raise Exception(f"device must in {'GPU','CPU'} not {device}")
+    if device:
+        CONF.GPU = device == "GPU"
+    print(f"{port=},GPU={CONF.GPU}")
+    EmbedingToolBasic.init()
+    EmbedingTool.init()
     app.run(debug=False, processes=0, threaded=True, host='0.0.0.0', port=port)
     
 if __name__ =="__main__":

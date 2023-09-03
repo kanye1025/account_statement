@@ -16,3 +16,13 @@ class TableRecog:
             raise Exception(f"wrong file ext {ext}")
     def get_table_data(self):
         return self.recog.get_table_data()
+    
+    
+if __name__ =="__main__":
+    file_path  = 'data/input/1672046917570_1364021.pdf'
+    from tools.embeding_tool import *
+    EmbedingToolBasic.init()
+    EmbedingTool.init()
+    obj = TableRecog(file_path).get_table_data()
+    print(obj)
+    

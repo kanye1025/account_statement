@@ -62,11 +62,13 @@ class PDFTableRecog:
         ret_obj['res2'] = list()
         #首页
         page = self.pdf.pages[0]
+        
         table = self.clear_table(page.extract_table())
         
         text = page.extract_text()
         
         head = EmbedingTool.get_head_index(table)[0]
+        head_names = table[head]
         texts_before_table.extend(self.get_text_before_table(text, table[0]))
         tables.append(table[head:])
         rows_before_head = table[:head]
@@ -81,15 +83,15 @@ class PDFTableRecog:
                 if table:
                     tables.append(table)
             
-        
-
-            
         for text in texts_before_table:
             ret_obj["res1"]["outside_infos"].append({'txt':text})
         for page_index,table in enumerate(tables):
             for row_index,row in enumerate(table):
                 row_order = '{:0>3d}'.format(page_index + 1) + '_' + str(row_index + 1)
-                header_row = True if page_index == 0 and row_index == 0 else False
+                if row_index == 0 and row == head_names:
+                    header_row = True
+                else:
+                    header_row = False
                 row_obj = {'row_order': row_order, "header_row": header_row}
                 for col_index,v in enumerate(row):
                     if not v:
