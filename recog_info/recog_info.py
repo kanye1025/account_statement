@@ -1,6 +1,6 @@
 # coding=utf-8
 import json
-from tools.embeding_tool import EmbedingTool
+from tools.embeding_tool_info import EmbedingToolInfo as EmbedingToolInfo
 from tools.llm_tool import LLMTool
 from collections import Counter
 from config import dicts
@@ -21,6 +21,7 @@ class RecogInfo:
                     
                     ]
     def __init__(self,obj):
+        EmbedingToolInfo.init()
         self.obj = obj
         self.texts = '\n'.join([i['txt'] for i in obj['res1']['outside_infos']])
         if not self.texts.replace('\n', '').replace(' ', '').replace('\t', ''):

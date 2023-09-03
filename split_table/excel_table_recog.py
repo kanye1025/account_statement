@@ -1,6 +1,6 @@
 import json
 import os
-from tools.embeding_tool import EmbedingTool
+from tools.embeding_tool_table import EmbedingToolTable as EmbedingTool
 from config.config import CONF
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from openpyxl import load_workbook
@@ -15,6 +15,7 @@ class ExcelTableRecog:
     #h_emb = None
     #embeding = None
     def __init__(self,file_path,byte = None):
+        EmbedingTool.init()
         if byte:
             #byte = byte.decode()
             

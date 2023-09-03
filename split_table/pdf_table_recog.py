@@ -2,12 +2,12 @@ import json
 
 from io import BytesIO
 import pdfplumber
-from tools.embeding_tool import EmbedingTool
+from tools.embeding_tool_table import EmbedingToolTable as EmbedingTool
 import numpy as np
 class PDFTableRecog:
-
+    
     def __init__(self,file):
-        
+        EmbedingTool.init()
         self.pdf = pdfplumber.open(file)
 
     def clear_table(self,table):
