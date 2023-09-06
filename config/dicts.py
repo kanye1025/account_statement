@@ -192,6 +192,6 @@ del accounting_entry_dict_
 
 
 person_organization_dict = {
-    "PERSON":"个人,人名",
+    "PERSON":"人名",
     "ORG":"公司,机构,组织,银行"
 }

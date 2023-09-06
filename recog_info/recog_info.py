@@ -248,10 +248,10 @@ class RecogInfo:
             #row_obj = {code_name_filed[code]:v for code,v in row_obj.items()}
             #row_obj = {name:row_obj[code] if code in row_obj else "" for code,name in code_name_filed.items() }
             
-            row_obj["科目标签"] = self.predict_account_label(row_obj) if not res3_row["header_row"] else "科目标签"
-            row_obj["分录方向"] = self.get_accounting_entry(row_obj) if not res3_row["header_row"] else "分录方向"
             row_obj["机构属性代码"],row_obj["机构属性名称"] = self.get_org_type(agent_type,row_obj) if not res3_row["header_row"] else ("机构属性代码","机构属性名称")
-            
+            row_obj["科目标签"] = self.predict_account_labelv2(row_obj) if not res3_row["header_row"] else "科目标签"
+            row_obj["分录方向"] = self.get_accounting_entry(row_obj) if not res3_row["header_row"] else "分录方向"
+
             field_list = list(dicts.field_code_name_dict[agent_type].values())
             field_list.extend(["科目标签","分录方向"])
             
@@ -273,7 +273,9 @@ class RecogInfo:
         if self.texts:
             obj = LLMTool.recog_before_info(self.agent,self.texts)
             if not obj["account_type"]:
-                obj["account_type"] = self.person_or_org(obj["account_name"])
+                if not obj["account_name"]:obj["account_type"] ="unknown"
+                else:
+                    obj["account_type"] = "对私" if   self.person_or_org(obj["account_name"]) =="PERSON" else "对公"
             if self.agent == "bank" :
                 if obj["bank_name"] in dicts.bank_code_dict:
                     obj["bank_name"] = dicts.bank_code_dict[obj["bank_name"]]
@@ -284,7 +286,8 @@ class RecogInfo:
                         if d == min_distance:
                             obj["bank_name"] = code
             self.obj['res1'].update(obj)
-            
+        else:
+            obj["account_type"] = "unknown"
     def get_accounting_entry(self,row_obj):
         pay_type = dicts.pay_type_dict[self.agent]
         if not row_obj[pay_type] or row_obj[pay_type]=="其他":
@@ -304,7 +307,26 @@ class RecogInfo:
             text = row_obj["交易类型"] +' '+row_obj["交易对方"]+ ' '+row_obj["交易方式"]
         
         return EmbedingTool.get_account_label(pay_type,text)
-    
+
+
+    def predict_account_labelv2(self, row_obj):
+        text = ""
+        if self.agent == "bank":
+            pay_type = row_obj["收支类型"]
+            if row_obj["备注（摘要）"]:
+                text+="资金的用途/备注是："+row_obj["备注（摘要）"]+";"
+        elif self.agent == "alipay":
+            pay_type = row_obj["收/支"]
+            if row_obj["商品说明"]:
+                text+="资金的用途/备注是："+row_obj["商品说明"]+";"
+        elif self.agent == "wechat":
+            pay_type = row_obj["收/支/其他"]
+            if row_obj["交易方式"] or row_obj["交易类型"]:
+                text+="资金的用途/备注是："+row_obj["交易类型"]+row_obj["交易方式"]+";"
+        if row_obj["机构属性名称"]:
+            text += '交易对方的行业是:' + row_obj["机构属性名称"]
+        return EmbedingTool.get_account_labelv2(self.obj['res1']["account_type"], pay_type, text)
+        
     def get_recoged_obj(self):
         self.get_agent()
         self.get_before_info()
@@ -337,8 +359,8 @@ class RecogInfo:
         except:
             raise Exception(f"money normalize failed: {money_str}")
 if __name__ == "__main__":
-    file_path = "data/output/甘玉兰化妆品2022.7-2022.9明细.xls.txt"
-    #file_path = "data/output/支付宝1.pdf.txt"
+    #file_path = "data/output/甘玉兰化妆品2022.7-2022.9明细.xls.txt"
+    file_path = "data/output/支付宝1.pdf.txt"
     #file_path = "data/output/李佳蔚.xlsx.txt"
     EmbedingToolBasic.init()
     EmbedingTool.init()

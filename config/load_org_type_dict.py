@@ -54,6 +54,7 @@ def get_org_type_dict():
                 if "不包括" in  row[3].value:
                     text = row[3].value.split("不包括")[0]+row[4].value
                 current_dest.append( text)
+    leaf_desc[current_type4] = '\n'.join(current_dest)
     return code_name_dict,leaf_desc
     
 if __name__ =="__main__":

@@ -1,5 +1,6 @@
 from tools.embeding_tool import *
 from config.load_org_type_dict import get_org_type_dict
+from config.load_asset_accounts_dict import get_asset_accounts_desc_dict
 class EmbedingToolInfo:
     inited = False
     
@@ -27,6 +28,13 @@ class EmbedingToolInfo:
             cls.person_organization_embeding = EmbedingToolBasic.get_embeding_dict(dicts.person_organization_dict)
             cls.org_code_name_dict,org_code_desc_dict = get_org_type_dict()
             cls.org_type_embeding = EmbedingToolBasic.get_embeding_dict(org_code_desc_dict)
+            
+            asset_accounts_desc_dict = get_asset_accounts_desc_dict()
+            cls.asset_accounts_embeding_dict = {}
+            for person_org, v1 in asset_accounts_desc_dict.items():
+                cls.asset_accounts_embeding_dict[person_org] = {}
+                for income_expenditure, v2 in v1.items():
+                    cls.asset_accounts_embeding_dict[person_org][income_expenditure] = EmbedingToolBasic.get_embeding_dict(v2)
     @classmethod
     def person_or_org(cls, text):
         return EmbedingToolBasic.classify_by_embeding_dict(cls.person_organization_embeding, text)
@@ -38,6 +46,13 @@ class EmbedingToolInfo:
     def get_account_label(cls, pay_type, text):
         if pay_type not in cls.account_label_embeding: return ""
         class_embeding = cls.account_label_embeding[pay_type]
+        return EmbedingToolBasic.classify_by_embeding_dict(class_embeding, text=text)
+
+    @classmethod
+    def get_account_labelv2(cls, person_org,pay_type, text):
+        if pay_type not in ("收入","支出"):return ""
+        person_org = "对公" if person_org =="对公" else "对私"  #unknown 也当对私处理
+        class_embeding = cls.asset_accounts_embeding_dict[person_org][pay_type]
         return EmbedingToolBasic.classify_by_embeding_dict(class_embeding, text=text)
     
     @classmethod

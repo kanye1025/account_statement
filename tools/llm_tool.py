@@ -94,7 +94,7 @@ class ChatGLM:
 class LLMTool:
     recog_before_info_prompts = {}
     recog_before_info_prompts["bank"] = """
-请在下列文本信息中识别银行名称，银行账号，账户名，账户类型（公司/个人），
+请在下列文本信息中提取银行名称，银行账号，账户名，账户类型（公司/个人），
 并返回如下json格式数据
 ```json格式
 {
@@ -110,7 +110,7 @@ class LLMTool:
 """
     
     recog_before_info_prompts["alipay"] = """
-请在下列文本信息中识别支付宝账户，姓名，身份证号码，账户类型（公司/个人），
+请在下列文本信息中提取支付宝账户，姓名，身份证号码，账户类型（公司/个人），
 并返回如下json格式数据
 ```json格式
 {
@@ -126,7 +126,7 @@ class LLMTool:
 """
     
     recog_before_info_prompts["wechat"] = """
-请在下列文本信息中识别微信账号，姓名，身份证号，账户类型（公司/个人），
+请在下列文本信息中提取微信账号，姓名，身份证号，账户类型（公司/个人），
 并返回如下json格式数据
 ```json格式
 {
