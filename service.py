@@ -6,7 +6,7 @@ from flask import request
 import traceback
 import logging
 import base64
-from tools.embeding_tool import EmbedingTool,EmbedingToolBasic
+from tools.embeding_tool_table import EmbedingToolTable as EmbedingTool
 from split_table.table_recog import TableRecog
 from config.config import CONF
 from io import BytesIO
@@ -55,7 +55,7 @@ def run(port = 8000,device = None):
     if device:
         CONF.GPU = device == "GPU"
     print(f"{port=},GPU={CONF.GPU}")
-    EmbedingToolBasic.init()
+
     EmbedingTool.init()
     app.run(debug=False, processes=0, threaded=True, host='0.0.0.0', port=port)
     

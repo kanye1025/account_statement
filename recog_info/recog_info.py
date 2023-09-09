@@ -2,12 +2,66 @@
 import json
 from tools.embeding_tool_info import EmbedingToolInfo as EmbedingTool
 from tools.llm_tool import LLMTool
+from config.load_asset_accounts_dict import get_asset_accounts_dict
 from collections import Counter
 from config import dicts
 import Levenshtein
+from multiprocessing import Pool
 import datetime
+from multiprocessing import cpu_count
 from collections import defaultdict
 from tools.embeding_tool import *
+
+class process_row:
+    def __init__(self,ri):
+        self.ri = ri
+    def __call__(self, res2_row):
+        res3_row = {}
+        res3_row["row_order"] = res2_row["row_order"]
+        row2_index = res2_row["row_order"].split('_')[1]
+        res3_row["header_row"] = res2_row["header_row"]
+        row_obj = {}
+        
+        for field, col_index in self.ri.field_index_dict.items():
+            index2 = row2_index + '.' + col_index
+            row_obj[field] = res2_row[index2].replace(' ', '') if col_index else ""
+        
+        if self.ri.agent_type == 'bank' and not res2_row["header_row"]:
+            row_obj = self.ri.trans_bank_row(self.ri.sub_type, row_obj, self.ri.account, id)
+        elif self.ri.agent_type == 'alipay' and not res2_row["header_row"]:
+            row_obj = self.ri.trans_alipay_row(self.ri.sub_type, row_obj, self.ri.account, id)
+        
+        # code_name_filed = dicts.field_code_name_dict[agent_type]
+        # row_obj = {code_name_filed[code]:v for code,v in row_obj.items()}
+        # row_obj = {name:row_obj[code] if code in row_obj else "" for code,name in code_name_filed.items() }
+        
+        row_obj["机构属性代码"], row_obj["机构属性名称"] = self.ri.get_org_type(self.ri.agent_type, row_obj) if not res3_row[
+            "header_row"] else ("机构属性代码", "机构属性名称")
+        row_obj["科目标签"] = self.ri.predict_account_labelv2(row_obj) if not res3_row["header_row"] else "科目标签"
+        row_obj["分录方向"] = self.ri.get_accounting_entry(row_obj) if not res3_row["header_row"] else "分录方向"
+        
+        field_list = list(dicts.field_code_name_dict[self.ri.agent_type].values())
+        field_list.extend(["科目标签", "分录方向"])
+        
+        for i, key in enumerate(field_list):
+            index3 = row2_index + '.' + str(i + 1)
+            if res2_row["header_row"]:
+                res3_row[index3] = key
+            else:
+                res3_row[index3] = row_obj[key]
+                if key == "交易日期":
+                    res3_row[index3] = self.ri.normalize_date_format(res3_row[index3])
+                elif "金额" in key or "余额" in key:
+                    
+                    res3_row[index3] = self.ri.normalize_money_format(res3_row[index3])
+        
+        return res3_row
+
+
+
+def _init_(i):
+    RecogInfo.et.init(True)
+    
 class RecogInfo:
     date_formats = ["%Y-%m-%d%H:%M:%S",
                     "%Y-%m-%d",
@@ -20,12 +74,27 @@ class RecogInfo:
                     "%Y%m%d%H:%M:%S",
                     
                     ]
+    et = EmbedingTool()
+    @classmethod
+    def init(cls):
+        
+        LLMTool.init()
+        sub_count = min(cpu_count(), CONF.max_worker)
+        
+        cls.et.init(CONF.load_embeding)
+        cls.pool = Pool(sub_count)
+        cls.pool.map(_init_,range(sub_count))
+
+        
+    
+        
     def __init__(self,obj):
-        EmbedingTool.init()
         self.obj = obj
         self.texts = '\n'.join([i['txt'] for i in obj['res1']['outside_infos']])
         if not self.texts.replace('\n', '').replace(' ', '').replace('\t', ''):
             self.texts = None
+        
+
     def str_to_float(self,s):
         s = s.replace(',','')
         return float(s)
@@ -40,7 +109,7 @@ class RecogInfo:
                 agent = "wechat"
             else:
                 agent = "bank"
-            #agent = EmbedingTool.recog_agent(self.texts)
+            #agent = self.et.recog_agent(self.texts)
         self.obj['res1']['agent_type'] = agent
         self.agent = agent
     def recog_field_sub_type(self,head_list):
@@ -73,12 +142,12 @@ class RecogInfo:
         """
         sub_type = agent_type +"_"+ self.recog_field_sub_type(head_value_dict.keys())
         if agent_type == 'bank':
-            field_index_dict = EmbedingTool.recog_field(sub_type, head_dict)
+            field_index_dict = self.et.recog_field(sub_type, head_dict)
         elif agent_type == "alipay":
-            field_index_dict = EmbedingTool.recog_field(sub_type, head_dict)
+            field_index_dict = self.et.recog_field(sub_type, head_dict)
 
         else:
-            field_index_dict = EmbedingTool.recog_field(agent_type, head_dict)
+            field_index_dict = self.et.recog_field(agent_type, head_dict)
         return field_index_dict, sub_type
     
     def statistic_main_account(self,field_index_dict):
@@ -188,27 +257,22 @@ class RecogInfo:
             
         return ret_obj
     
-    def person_or_org(self,text):
-        
-        score_dict = {k:v for k,v in EmbedingToolBasic.classify_by_embeding_dict(EmbedingTool.person_organization_embeding, text,top_k = 2)}
-        if len(text)<=3 and "支付" not in text and "微信" not in text and "财付通" not in text:
-            score_dict["PERSON"] +=0.1
-        return sorted([(k,v)for k,v in score_dict.items()],key=lambda x:x[1],reverse=True)[0][0]
+    
         
     def get_org_type(self,agent_type,row_obj):
         
         counterparty_key = "对方户名" if agent_type == "bank" else "交易对方"
         counterparty = row_obj[counterparty_key]
         if not counterparty: return "",""
-        #if EmbedingTool.person_or_org(counterparty) != "ORG":
-        if self.person_or_org(counterparty) != "ORG":
+        #if self.et.person_or_org(counterparty) != "ORG":
+        if self.et.person_or_org(counterparty) != "ORG":
             return "",""
 
         #counterparty = counterparty.replace()
-        return EmbedingTool.get_org_type(counterparty)
+        return self.et.get_org_type(counterparty)
 
     def field_align(self):
-        agent_type = self.obj["res1"]['agent_type']
+        self.agent_type = self.obj["res1"]['agent_type']
         self.obj["res3"] = list()
         head_dict = dict()
         for row in self.obj["res2"]:
@@ -222,60 +286,29 @@ class RecogInfo:
             raise Exception("not find any header_row")
         head_dict = self.clear_head(head_dict)
         head_value_dict = self.gen_head_description(head_dict)
-        field_index_dict,sub_type = self.recog_field(agent_type,head_dict,head_value_dict)
-        if sub_type =="bank_IE_role":
-            account,id = self.statistic_main_account(field_index_dict)
+        self.field_index_dict,self.sub_type = self.recog_field(self.agent_type,head_dict,head_value_dict)
+        if self.sub_type =="bank_IE_role":
+            self.account,self.id = self.statistic_main_account(self.field_index_dict)
         else:
-            account,id = None,None
+            self.account,self.id = None,None
+        
+
+        
+        rets = self.pool.map(process_row(self),self.obj["res2"])
+        self.obj["res3"].extend(rets)
+        '''
         for res2_row in self.obj["res2"]:
-            res3_row = {}
-            res3_row["row_order"] = res2_row["row_order"]
-            row2_index = res2_row["row_order"].split('_')[1]
-            res3_row["header_row"] = res2_row["header_row"]
-            row_obj = {}
-            
-            for field, col_index in field_index_dict.items():
-                index2 = row2_index + '.' + col_index
-                row_obj[field] =res2_row[index2].replace(' ','') if col_index else ""
-            
-            if agent_type == 'bank' and not res2_row["header_row"]:
-                row_obj = self.trans_bank_row(sub_type,row_obj,account,id)
-            elif agent_type == 'alipay' and not res2_row["header_row"]:
-                row_obj = self.trans_alipay_row(sub_type, row_obj, account, id)
-            
-
-            #code_name_filed = dicts.field_code_name_dict[agent_type]
-            #row_obj = {code_name_filed[code]:v for code,v in row_obj.items()}
-            #row_obj = {name:row_obj[code] if code in row_obj else "" for code,name in code_name_filed.items() }
-            
-            row_obj["机构属性代码"],row_obj["机构属性名称"] = self.get_org_type(agent_type,row_obj) if not res3_row["header_row"] else ("机构属性代码","机构属性名称")
-            row_obj["科目标签"] = self.predict_account_labelv2(row_obj) if not res3_row["header_row"] else "科目标签"
-            row_obj["分录方向"] = self.get_accounting_entry(row_obj) if not res3_row["header_row"] else "分录方向"
-
-            field_list = list(dicts.field_code_name_dict[agent_type].values())
-            field_list.extend(["科目标签","分录方向"])
-            
-            for i,key in enumerate(field_list):
-                index3 = row2_index + '.' + str(i + 1)
-                if res2_row["header_row"]:
-                    res3_row[index3] = key
-                else:
-                    res3_row[index3] = row_obj[key]
-                    if key == "交易日期":
-                        res3_row[index3] = self.normalize_date_format(res3_row[index3])
-                    elif "金额" in key or "余额" in key:
-
-                        res3_row[index3] = self.normalize_money_format(res3_row[index3])
+            res3_row = process_row(res2_row)
                         
             self.obj["res3"].append(res3_row)
-    
+        '''
     def get_before_info(self):
         if self.texts:
             obj = LLMTool.recog_before_info(self.agent,self.texts)
             if not obj["account_type"]:
                 if not obj["account_name"]:obj["account_type"] ="unknown"
                 else:
-                    obj["account_type"] = "对私" if   self.person_or_org(obj["account_name"]) =="PERSON" else "对公"
+                    obj["account_type"] = "对私" if   self.et.person_or_org(obj["account_name"]) =="PERSON" else "对公"
             if self.agent == "bank" :
                 if obj["bank_name"] in dicts.bank_code_dict:
                     obj["bank_name"] = dicts.bank_code_dict[obj["bank_name"]]
@@ -287,26 +320,17 @@ class RecogInfo:
                             obj["bank_name"] = code
             self.obj['res1'].update(obj)
         else:
-            obj["account_type"] = "unknown"
+            self.obj['res1']["account_type"] = "unknown"
     def get_accounting_entry(self,row_obj):
-        pay_type = dicts.pay_type_dict[self.agent]
-        if not row_obj[pay_type] or row_obj[pay_type]=="其他":
+        account_type = "对私" if self.obj['res1']["account_type"] =="unknown" else self.obj['res1']["account_type"]
+        pay_type_key = dicts.pay_type_dict[self.agent]
+        pay_type = row_obj[pay_type_key]
+        if not pay_type or pay_type=="其他":
             return ""
         if not row_obj["科目标签"] :return ""
-        key = f"""{row_obj["科目标签"]},{row_obj[pay_type]}"""
-        return dicts.accounting_entry_dict[key]
-    def predict_account_label(self,row_obj):
-        if self.agent =="bank":
-            pay_type = row_obj["收支类型"]
-            text = row_obj["备注（摘要）"]+' '+row_obj["对方户名"]
-        elif self.agent =="alipay":
-            pay_type = row_obj["收/支"]
-            text = row_obj["交易对方"]+' '+row_obj["商品说明"]
-        elif self.agent == "wechat":
-            pay_type = row_obj["收/支/其他"]
-            text = row_obj["交易类型"] +' '+row_obj["交易对方"]+ ' '+row_obj["交易方式"]
-        
-        return EmbedingTool.get_account_label(pay_type,text)
+        asset_accounts_dict, name_code_dict = get_asset_accounts_dict()
+        return asset_accounts_dict[account_type][pay_type][row_obj["科目标签"]]['accounting_entry']
+    
 
 
     def predict_account_labelv2(self, row_obj):
@@ -325,7 +349,7 @@ class RecogInfo:
                 text+="资金的用途/备注是："+row_obj["交易类型"]+row_obj["交易方式"]+";"
         if row_obj["机构属性名称"]:
             text += '交易对方的行业是:' + row_obj["机构属性名称"]
-        return EmbedingTool.get_account_labelv2(self.obj['res1']["account_type"], pay_type, text)
+        return self.et.get_account_labelv2(self.obj['res1']["account_type"], pay_type, text)
         
     def get_recoged_obj(self):
         self.get_agent()
@@ -334,6 +358,7 @@ class RecogInfo:
         return self.obj
     
     def normalize_date_format(self,date_str):
+        if not date_str:return ""
         date_str = date_str.split(".")[0]
         for format_str in self.date_formats:
             try:
@@ -359,11 +384,16 @@ class RecogInfo:
         except:
             raise Exception(f"money normalize failed: {money_str}")
 if __name__ == "__main__":
-    #file_path = "data/output/甘玉兰化妆品2022.7-2022.9明细.xls.txt"
-    file_path = "data/output/支付宝1.pdf.txt"
+    #file_path = "data/output/川锅锅炉2023年1-6月中行流水.xls.txt"
+    #file_path = "data/output/支付宝1.pdf.txt"
+    file_path = "data/output/支付宝流水.pdf.xlsx.txt"
+    
     #file_path = "data/output/李佳蔚.xlsx.txt"
-    EmbedingToolBasic.init()
-    EmbedingTool.init()
+    torch.multiprocessing.set_start_method('spawn')
+    #self.et.init()
+    CONF.max_worker = 1
+    RecogInfo.init()
+    
     with open(file_path,'r',encoding="utf-8") as f:
         with open ('data/out.json','w',encoding='utf-8') as fo:
             obj = json.load(f)

@@ -12,3 +12,4 @@ accelerate
 python-Levenshtein
 pdfplumber
 sentence_transformers
+openpyxl

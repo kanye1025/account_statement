@@ -2,7 +2,7 @@ from config.config import CONF
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 import numpy as np
 from config import  dicts
-
+import torch
 class EmbedingToolBasic:
     embeding = None
     @classmethod
@@ -10,6 +10,8 @@ class EmbedingToolBasic:
         if not cls.embeding :
             cls.device = 'cuda' if CONF.GPU else 'cpu'
             cls.embeding = HuggingFaceEmbeddings(model_name=CONF.embeding_model_path, model_kwargs={'device': cls.device})
+
+            
     @classmethod
     def detect_text_in_list(cls,query,candidates):
         if type(query) == str:
@@ -51,8 +53,21 @@ class EmbedingToolBasic:
         return cls.embeding.embed_query(query)
     @classmethod
     def sim(cls,q,k):
-        return  np.dot(q, k) / (np.linalg.norm(q) * np.linalg.norm(k))
+
+        q = torch.from_numpy(np.asarray(q,dtype=float)).to(cls.device)
+        k = torch.from_numpy(np.asarray(k,dtype=float)).to(cls.device)
+        similarity = torch.cosine_similarity(q, k,dim=0)
+        return similarity.item()
+
+    @classmethod
+    def sims(cls, q, ks):
+        q = torch.from_numpy(np.asarray(q, dtype=float)).to(cls.device)
+        k = torch.from_numpy(np.asarray(ks, dtype=float)).to(cls.device)
+        similarity = torch.cosine_similarity(q, k, dim=1)
+        return similarity.item()
+        #return  np.dot(q, k) / (np.linalg.norm(q) * np.linalg.norm(k))
         #return  np.dot(q, k)
+    '''
     @classmethod
     def classify_by_embeding_dict(cls,class_dict,text = None ,text_emb  = None,top_k =None):
         if not text_emb:
@@ -67,6 +82,28 @@ class EmbedingToolBasic:
         else:
             ret = sorted(ret, key=lambda x: x[1], reverse=True)[:top_k]
             return ret
+    '''
+
+    @classmethod
+    def classify_by_embeding_dict(cls, class_dict, text=None, text_emb=None, top_k=None):
+        if not text_emb:
+            text_emb = cls.get_query_embeding(text)
+        keys = class_dict.keys()
+        embedings = list(class_dict.values())
+        q = torch.from_numpy(np.asarray(text_emb, dtype=float)).to(cls.device)
+        ks = torch.from_numpy(np.asarray(embedings, dtype=float)).to(cls.device)
+        similarities = torch.cosine_similarity(q, ks, dim=1).tolist()
+        
+        ret = zip(keys,similarities)
+        
+        
+        if not top_k:
+            ret = sorted(ret, key=lambda x: x[1], reverse=True)
+            return ret[0][0]
+        else:
+            ret = sorted(ret, key=lambda x: x[1], reverse=True)[:top_k]
+            return ret
+    
     @classmethod
     def detect_texts_in_texts(cls, embeding_dict_super,embeding_dict_sub):
         pre_dict = {}
@@ -85,6 +122,8 @@ class EmbedingToolBasic:
         sort_dict = {}
         for q, r in pre_dict.items():
             k, s = r[1]
+            if k in ret_dict.values():
+                continue
             if k not in sort_dict or sort_dict[k][1] < s:
                 sort_dict[k] = (q, s)
         for k ,(q,s)in sort_dict.items():

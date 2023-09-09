@@ -10,19 +10,23 @@ from collections import Counter
 import json
 
 class ChatGLM:
-    #peft_model = "/root/autodl-tmp/FinGPT_v31_ChatGLM2_Sentiment_Instruction_LoRA_FT"
-    tokenizer = AutoTokenizer.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
-    model = AutoModel.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
-    #model = PeftModel.from_pretrained(model, peft_model)
-    if torch.cuda.is_available() and CONF.GPU:
-        model = model.cuda()
-        device = torch.device("cuda")
-        print("use gpu ")
-    else:
-        model= model.float()
-        device = torch.device("cpu")
-        print("use cpu")
-    model.eval()
+    
+    
+    @classmethod
+    def init(cls):
+        # peft_model = "/root/autodl-tmp/FinGPT_v31_ChatGLM2_Sentiment_Instruction_LoRA_FT"
+        cls.tokenizer = AutoTokenizer.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
+        cls.model = AutoModel.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
+        # model = PeftModel.from_pretrained(model, peft_model)
+        if torch.cuda.is_available() and CONF.GPU:
+            cls.model = cls.model.cuda()
+            cls.device = torch.device("cuda")
+            print("use gpu ")
+        else:
+            cls.model = cls.model.float()
+            cls.device = torch.device("cpu")
+            print("use cpu")
+        cls.model.eval()
     @classmethod
     def predict(cls, txt, max_length=256, temperature=0.75,do_sample = True,**kwargs):
         inputs = cls.tokenizer([txt], return_tensors="pt").to(cls.device)
@@ -101,7 +105,9 @@ class LLMTool:
 "银行名称":"",
 "银行账号":"",
 "账户名":"",
-"账户类型":""
+"账户类型":"",
+"开始日期":"",
+"结束日期":""
 }```
 文本信息开始【
 {text}
@@ -117,7 +123,9 @@ class LLMTool:
 "支付宝账户":"",
 "姓名":"",
 "身份证号码":"",
-"账户类型":""
+"账户类型":"",
+"开始日期":"",
+"结束日期":""
 }```
 文本信息开始【
 {text}
@@ -133,7 +141,9 @@ class LLMTool:
 "微信账号":"",
 "姓名":"",
 "身份证号":"",
-"账户类型":""
+"账户类型":"",
+"开始日期":"",
+"结束日期":""
 }```
 文本信息开始【
 {text}
@@ -147,18 +157,24 @@ class LLMTool:
             ("accout_num", "银行账号"),
             ("account_name", "账户名"),
             ("account_type", "账户类型"),
+            ("begin_date", "开始日期"),
+            ("end_date", "结束日期"),
         ],
         "alipay": [
             ("accout_num", "支付宝账户"),
             ("account_name", "姓名"),
             ("idcard_num", "身份证号码"),
             ("account_type", "账户类型"),
+            ("begin_date", "开始日期"),
+            ("end_date", "结束日期"),
         ],
         "wechat": [
             ("accout_num", "微信账号"),
             ("account_name", "姓名"),
             ("idcard_num", "身份证号"),
-            ("account_type", "账户类型")
+            ("account_type", "账户类型"),
+            ("begin_date", "开始日期"),
+            ("end_date", "结束日期"),
         ]
     }
     
@@ -177,7 +193,9 @@ class LLMTool:
 请返回提取后的json
 """
     
-
+    @classmethod
+    def init(cls):
+        ChatGLM.init()
     @classmethod
     def recog_field(cls,agent_type,head_value_dict):
         value_head_dict = {v:h for h,v in head_value_dict.items()}
@@ -237,7 +255,9 @@ class LLMTool:
         }
         prompt = deepcopy(cls.recog_before_info_prompts[agent_type])
         message = prompt.replace("{text}", text)
-        resobj = ChatGLM.predict_respond_json(message, max_length=8096)
+        print("begin predict base info")
+        resobj = ChatGLM.predict_respond_json(message, max_length=1024)
+        print("end predict base info")
         key_pairs = cls.before_info_keys[agent_type]
         obj = {}
         for code, name in key_pairs:
