@@ -52,7 +52,8 @@ class process_row:
                 if key == "交易日期":
                     res3_row[index3] = self.ri.normalize_date_format(res3_row[index3])
                 elif "金额" in key or "余额" in key:
-                    
+                    if  "余额"  in key and  not res3_row[index3]:
+                        continue
                     res3_row[index3] = self.ri.normalize_money_format(res3_row[index3])
         
         return res3_row
@@ -129,8 +130,10 @@ class RecogInfo:
             return "IE_type"
         if get_index("付款") != -1 and get_index("收款")!=-1:
             return "IE_role"
-        else:
-            return "IE_sign"
+        if get_index("借方") != -1 and get_index("贷方")!=-1:
+            return "IE_split_debit_credit"
+        
+        return "IE_sign"
     
     def recog_field(self,agent_type,head_dict,head_value_dict):
         """
@@ -171,7 +174,7 @@ class RecogInfo:
                 row_obj["收支类型"] = "支出"
             else:
                 row_obj["收支类型"] = "收入"
-        elif bank_type == "bank_IE_split":
+        elif bank_type in ("bank_IE_split","bank_IE_split_debit_credit"):
             if not row_obj["支出"] or not self.str_to_float(row_obj["支出"]):
                 row_obj["收支类型"] = "收入"
                 row_obj["交易金额"] = row_obj["收入"]
@@ -386,7 +389,7 @@ class RecogInfo:
 if __name__ == "__main__":
     #file_path = "data/output/川锅锅炉2023年1-6月中行流水.xls.txt"
     #file_path = "data/output/支付宝1.pdf.txt"
-    file_path = "data/output/支付宝流水.pdf.xlsx.txt"
+    file_path = "data/output/活期账户交易明细查询2023.xlsx.txt"
     
     #file_path = "data/output/李佳蔚.xlsx.txt"
     torch.multiprocessing.set_start_method('spawn')
