@@ -105,13 +105,15 @@ class EmbedingToolBasic:
             return ret
     
     @classmethod
-    def detect_texts_in_texts(cls, embeding_dict_super,embeding_dict_sub):
+    def detect_texts_in_texts(cls, embeding_dict_super,embeding_dict_sub,th = 0.0 ):
         pre_dict = {}
         for sub_key,q_embeding in embeding_dict_sub.items():
-            pre_dict[sub_key] = cls.classify_by_embeding_dict(embeding_dict_super,text_emb = q_embeding,top_k=2)
+            pre_dict[sub_key] = cls.classify_by_embeding_dict(embeding_dict_super,text_emb = q_embeding,top_k=3)
         sort_dict = {}
         for q,r in pre_dict.items():
             k,s = r[0]
+            if s <th:
+                continue
             if k not in sort_dict or sort_dict[k][1]<s:
                 sort_dict[k] = (q,s)
         ret_dict = {k:'' for k in embeding_dict_sub.keys()}
@@ -122,11 +124,26 @@ class EmbedingToolBasic:
         sort_dict = {}
         for q, r in pre_dict.items():
             k, s = r[1]
+            if s <th:
+                continue
             if k in ret_dict.values():
                 continue
             if k not in sort_dict or sort_dict[k][1] < s:
                 sort_dict[k] = (q, s)
         for k ,(q,s)in sort_dict.items():
+            ret_dict[q] = k
+            del pre_dict[q]
+
+        sort_dict = {}
+        for q, r in pre_dict.items():
+            k, s = r[2]
+            if s <th:
+                continue
+            if k in ret_dict.values():
+                continue
+            if k not in sort_dict or sort_dict[k][1] < s:
+                sort_dict[k] = (q, s)
+        for k, (q, s) in sort_dict.items():
             ret_dict[q] = k
             del pre_dict[q]
         return ret_dict

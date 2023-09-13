@@ -10,8 +10,6 @@ from collections import Counter
 import json
 
 class ChatGLM:
-    
-    
     @classmethod
     def init(cls):
         # peft_model = "/root/autodl-tmp/FinGPT_v31_ChatGLM2_Sentiment_Instruction_LoRA_FT"
@@ -61,7 +59,7 @@ class ChatGLM:
         return response
     @classmethod
     def predict_respond_json(cls, txt,  max_length=8196, temperatures=[0.01,0.35,0.75,1]):
-        txt = "问:"+txt+"\n\n答:好的，返回的json数据为\n```{"
+        txt = "问:"+txt+"\n\n答:好的，根据上面的信息提取的json数据为\n```{"
         for temperature in temperatures:
             try:
                 respond = cls.predict(txt,max_length=max_length,temperature = temperature,do_sample = True)
@@ -98,81 +96,81 @@ class ChatGLM:
 class LLMTool:
     recog_before_info_prompts = {}
     recog_before_info_prompts["bank"] = """
-请在下列文本信息中提取银行名称，银行账号，账户名，账户类型（公司/个人），
+请在下列文本信息中提取银行名称，银行账号，账户名，账户名类型（判断是"公司名"、"机构名"还是"人名"），开始日期，结束日期
 并返回如下json格式数据
 ```json格式
 {
 "银行名称":"",
 "银行账号":"",
 "账户名":"",
-"账户类型":"",
+"账户名类型":"",
 "开始日期":"",
 "结束日期":""
 }```
 文本信息开始【
 {text}
 】文本信息结束
-必须返回json格式，未识别的字段请给""
+,未识别的字段请给""
 """
     
     recog_before_info_prompts["alipay"] = """
-请在下列文本信息中提取支付宝账户，姓名，身份证号码，账户类型（公司/个人），
+请在下列文本信息中提取支付宝账户，姓名，身份证号码，姓名类型（判断是"公司名"、"机构名"还是"人名"），开始日期，结束日期
 并返回如下json格式数据
 ```json格式
 {
 "支付宝账户":"",
 "姓名":"",
 "身份证号码":"",
-"账户类型":"",
+"姓名类型":"",
 "开始日期":"",
 "结束日期":""
 }```
 文本信息开始【
 {text}
 】文本信息结束
-必须返回json格式，未识别的字段请给""
+，未识别的字段请给""
 """
     
     recog_before_info_prompts["wechat"] = """
-请在下列文本信息中提取微信账号，姓名，身份证号，账户类型（公司/个人），
+请在下列文本信息中提取微信账号（微信号），姓名，身份证号，姓名类型（判断是"公司名"、"机构名"还是"人名"），开始日期，结束日期
 并返回如下json格式数据
 ```json格式
 {
 "微信账号":"",
 "姓名":"",
 "身份证号":"",
-"账户类型":"",
+"姓名类型":"",
 "开始日期":"",
 "结束日期":""
 }```
 文本信息开始【
 {text}
 】文本信息结束
-必须返回json格式，未识别的字段请给""
+，未识别的字段请给""
 """
     
     before_info_keys = {
         "bank":[
             ("bank_name","银行名称"),
-            ("accout_num", "银行账号"),
+            ("account_num", "银行账号"),
             ("account_name", "账户名"),
-            ("account_type", "账户类型"),
+            ("account_type", "账户名类型"),
             ("begin_date", "开始日期"),
             ("end_date", "结束日期"),
         ],
         "alipay": [
-            ("accout_num", "支付宝账户"),
+            ("account_num", "支付宝账户"),
             ("account_name", "姓名"),
             ("idcard_num", "身份证号码"),
-            ("account_type", "账户类型"),
+            ("account_type", "姓名类型"),
             ("begin_date", "开始日期"),
             ("end_date", "结束日期"),
         ],
         "wechat": [
-            ("accout_num", "微信账号"),
+            ("account_num", "微信账号"),
             ("account_name", "姓名"),
             ("idcard_num", "身份证号"),
-            ("account_type", "账户类型"),
+            ("account_type", "姓名类型"),
             ("begin_date", "开始日期"),
             ("end_date", "结束日期"),
         ]
@@ -251,22 +249,28 @@ class LLMTool:
         account_type_dict = {
             "个人": "对私",
             "公司": "对公",
+            "个人名": "对私",
+            "公司名": "对公",
+            "机构名": "对公",
+            "对私": "对私",
+            "对公": "对公",
             "":   ""
         }
         prompt = deepcopy(cls.recog_before_info_prompts[agent_type])
         message = prompt.replace("{text}", text)
-        print("begin predict base info")
+        #print("begin predict base info")
         resobj = ChatGLM.predict_respond_json(message, max_length=1024)
-        print("end predict base info")
+        #print("end predict base info")
         key_pairs = cls.before_info_keys[agent_type]
         obj = {}
         for code, name in key_pairs:
             if name in resobj:
                 obj[code] = resobj[name]
-                if code == "account_type" and obj["account_type"] in account_type_dict:
-                    obj["account_type"] = account_type_dict[obj["account_type"]]
-                else:
-                    obj[code] = ""
+                if code == "account_type" :
+                    if obj["account_type"] in account_type_dict:
+                        obj["account_type"] = account_type_dict[obj["account_type"]]
+                    else:
+                        obj[code] = ""
 
         return obj
     

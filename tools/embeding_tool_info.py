@@ -5,6 +5,7 @@ from toolkit.utils.process_exec import ExecProcess,process_exec
 from toolkit.utils.data_file import DataFile
 from config.config import CONF
 import os
+from copy import deepcopy
 import inspect
 #process =  ExecProcess()
 class EmbedingToolInfo:
@@ -43,9 +44,6 @@ class EmbedingToolInfo:
             self.field_embeding = {}
             for agent, key_dict in dicts.field_dict.items():
                 self.field_embeding[agent] = EmbedingToolBasic.get_embeding_dict(key_dict, is_query=True)
-            self.account_label_embeding = {}
-            for pay_type, label_dict in dicts.account_label_dict.items():
-                self.account_label_embeding[pay_type] = EmbedingToolBasic.get_embeding_dict(label_dict)
             
             self.bank_field_type_split_embeding = {k: EmbedingToolBasic.get_embeding_list(v, is_query=True) for k, v in
                                                   dicts.bank_field_type_split.items()}
@@ -74,6 +72,8 @@ class EmbedingToolInfo:
                                                                   top_k=2)}
         if len(text) <= 3 and "支付" not in text and "微信" not in text and "财付通" not in text:
             score_dict["PERSON"] += 0.1
+        if "公司" in text or "银行" in text :
+            score_dict["ORG"] +=0.1
         return sorted([(k, v) for k, v in score_dict.items()], key=lambda x: x[1], reverse=True)[0][0]
     
     
@@ -83,15 +83,11 @@ class EmbedingToolInfo:
         code = EmbedingToolBasic.classify_by_embeding_dict(self.org_type_embeding,text=text)
         return code,self.org_code_name_dict[code]
 
-    def get_account_label(self,pay_type, text):
-        if pay_type not in self.account_label_embeding: return ""
-        class_embeding = self.account_label_embeding[pay_type]
-        return EmbedingToolBasic.classify_by_embeding_dict(class_embeding, text=text)
 
 
     def get_account_labelv2(self, person_org,pay_type, text):
         if pay_type not in ("收入","支出"):return ""
-        person_org = "对公" if person_org =="对公" else "对私"  #unknown 也当对私处理
+        person_org = "对私" if person_org =="对私" else "对公"  #unknown 也当对公处理
         class_embeding = self.asset_accounts_embeding_dict[person_org][pay_type]
         return EmbedingToolBasic.classify_by_embeding_dict(class_embeding, text=text)
     
@@ -136,9 +132,18 @@ class EmbedingToolInfo:
     
 
     def recog_field(self, agent, head_dict):
+        for k,v in head_dict.items():
+            tmp_v = list()
+            for w in v:
+                if w.encode('utf-8').isalpha():
+                    continue
+                tmp_v.append(w)
+            head_dict[k] = ''.join(tmp_v)
+
+        head_dict = {k: v.replace("账号","卡号").replace("账户","户名")  for k, v in head_dict.items() if "开户行" not in v }
         head_embeding_dict = EmbedingToolBasic.get_embeding_dict(head_dict)
         embeding_dict = self.field_embeding[agent]
-        ret = EmbedingToolBasic.detect_texts_in_texts(head_embeding_dict, embeding_dict)
+        ret = EmbedingToolBasic.detect_texts_in_texts(head_embeding_dict, embeding_dict,th=0.4)
         return ret
     
 
