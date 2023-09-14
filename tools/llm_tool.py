@@ -94,60 +94,53 @@ class ChatGLM:
         except Exception as e:
             raise Exception(f"wrong respond:{respond}")
 class LLMTool:
-    recog_before_info_prompts = {}
-    recog_before_info_prompts["bank"] = """
-请在下列文本信息中提取银行名称，银行账号，账户名，账户名类型（判断是"公司名"、"机构名"还是"人名"），开始日期，结束日期
-并返回如下json格式数据
-```json格式
-{
-"银行名称":"",
-"银行账号":"",
-"账户名":"",
-"账户名类型":"",
-"开始日期":"",
-"结束日期":""
-}```
+    
+    recog_befor_info_des = {}
+    recog_befor_info_des["bank"] = {
+"银行名称":"银行或开户行名称，若干汉字，通常会包含'银行'或者'信用'，有时带'支行'",
+"银行账号":"银行账号，通常是一串数字",
+"账户名":"账户名，通常是人名或公司、机构名，中文汉字",
+"账户名类型":"账户名类型，如果账户名是人名，就返回'个人'，如果是公司、机构名就返回'公司'",
+"开始日期":"开始日期，流水开始的日期，非必须",
+"结束日期":"结束日期，流水结束的日期，非必须"
+}
+    recog_befor_info_des["alipay"] = {
+"支付宝账户":"支付宝账户名，通常是一串英文字母或者阿拉伯数字，或者二者混合",
+"姓名":"人名或者公司、机构名,中文汉字",
+"身份证号码":"身份证号码,通常是一串数字，也可能是一串数字+x结尾,不一定有",
+"姓名类型":"账户类型,如果账户名是人名，就返回个人，如果是公司、机构名就返回公司",
+"开始日期":"开始日期，流水开始的日期，不一定有",
+"结束日期":"结束日期，流水结束的日期，不一定有"
+}
+    recog_befor_info_des["wechat"] = {
+"微信账号":"微信账号，通常是一串英文字母或者阿拉伯数字，或者二者混合",
+"姓名":"人名或者公司、机构名,中文汉字",
+"身份证号码":"身份证号码,通常是一串数字，也可能是一串数字+x结尾,不一定有",
+"姓名类型":"账户类型,如果账户名是人名，就返回个人，如果是公司、机构名就返回公司",
+"开始日期":"开始日期，流水开始的日期，不一定有",
+"结束日期":"结束日期，流水结束的日期，不一定有"
+}
+
+    recog_before_info_prompt = """
+信息提取任务：
+已知字段名和对应的字段说明
+字段说明开始【
+{des}
+】字段说明结束
+
+请根据字段说明在下述文本信息中提取上述字段：
+
 文本信息开始【
 {text}
 】文本信息结束
-,未识别的字段请给""
+
+提取后的信息按照如下json格式返回
+```json格式
+{json}
+```
+未识别字段返回"未识别"
 """
     
-    recog_before_info_prompts["alipay"] = """
-请在下列文本信息中提取支付宝账户，姓名，身份证号码，姓名类型（判断是"公司名"、"机构名"还是"人名"），开始日期，结束日期
-并返回如下json格式数据
-```json格式
-{
-"支付宝账户":"",
-"姓名":"",
-"身份证号码":"",
-"姓名类型":"",
-"开始日期":"",
-"结束日期":""
-}```
-文本信息开始【
-{text}
-】文本信息结束
-，未识别的字段请给""
-"""
-    
-    recog_before_info_prompts["wechat"] = """
-请在下列文本信息中提取微信账号（微信号），姓名，身份证号，姓名类型（判断是"公司名"、"机构名"还是"人名"），开始日期，结束日期
-并返回如下json格式数据
-```json格式
-{
-"微信账号":"",
-"姓名":"",
-"身份证号":"",
-"姓名类型":"",
-"开始日期":"",
-"结束日期":""
-}```
-文本信息开始【
-{text}
-】文本信息结束
-，未识别的字段请给""
-"""
     
     before_info_keys = {
         "bank":[
@@ -169,14 +162,14 @@ class LLMTool:
         "wechat": [
             ("account_num", "微信账号"),
             ("account_name", "姓名"),
-            ("idcard_num", "身份证号"),
+            ("idcard_num", "身份证号码"),
             ("account_type", "姓名类型"),
             ("begin_date", "开始日期"),
             ("end_date", "结束日期"),
         ]
     }
     
-    
+    before_info_code_dicts = {agent:{name:code for code,name in d}    for agent,d in before_info_keys.items()}
     filed_recog_prompt = """给定一些标签id和标签的说明，
 {field_text}
 请从以下原json数据中，提取标签对应的值，并返回如下json格式
@@ -256,21 +249,31 @@ class LLMTool:
             "对公": "对公",
             "":   ""
         }
-        prompt = deepcopy(cls.recog_before_info_prompts[agent_type])
-        message = prompt.replace("{text}", text)
-        #print("begin predict base info")
-        resobj = ChatGLM.predict_respond_json(message, max_length=1024)
-        #print("end predict base info")
-        key_pairs = cls.before_info_keys[agent_type]
-        obj = {}
-        for code, name in key_pairs:
-            if name in resobj:
-                obj[code] = resobj[name]
-                if code == "account_type" :
-                    if obj["account_type"] in account_type_dict:
-                        obj["account_type"] = account_type_dict[obj["account_type"]]
-                    else:
-                        obj[code] = ""
+        recog_befor_info_des = {cls.before_info_code_dicts[agent_type][k]:v  for k,v in cls.recog_befor_info_des[agent_type].items()}
+        obj = {k:"" for k,v in cls.before_info_keys[agent_type]}
+        temperature = 0.01
+        for i in range(5):
+            if not recog_befor_info_des:
+                break
+            prompt = deepcopy(cls.recog_before_info_prompt)
+            message = prompt.replace("{text}", text).\
+                replace("{des}",json.dumps(recog_befor_info_des,ensure_ascii=False)).\
+                replace("{json}",json.dumps({k:"" for k,v in recog_befor_info_des.items()},ensure_ascii=False))
+            #print("begin predict base info")
+            resobj = ChatGLM.predict_respond_json(message, max_length=1024,temperatures = [temperature])
+            #print("end predict base info")
 
+            for code in cls.before_info_keys[agent_type]:
+                if code in resobj:
+                    if not resobj[code] or resobj[code] in ("未识别","unknow","xxx","未知"):
+                        continue
+                    obj[code] = resobj[code]
+                    del recog_befor_info_des[code]
+                    if code == "account_type" :
+                        if obj["account_type"] in account_type_dict:
+                            obj["account_type"] = account_type_dict[obj["account_type"]]
+                        else:
+                            obj[code] = ""
+            temperature*=2.5
         return obj
     

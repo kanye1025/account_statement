@@ -132,6 +132,8 @@ class EmbedingToolInfo:
     
 
     def recog_field(self, agent, head_dict):
+        head_dict = deepcopy(head_dict)
+        
         for k,v in head_dict.items():
             tmp_v = list()
             for w in v:
@@ -139,11 +141,16 @@ class EmbedingToolInfo:
                     continue
                 tmp_v.append(w)
             head_dict[k] = ''.join(tmp_v)
-
+            
+        datetime_dict = {k:v for k,v in head_dict.items() if "时间" in v or "日期" in v}
+        head_dict = {k: v for k, v in head_dict.items() if "时间" not in v and "日期"  not in v}
+        datetime_emb_dict = EmbedingToolBasic.get_embeding_dict(datetime_dict)
+        date_key = EmbedingToolBasic.classify_by_embeding_dict(datetime_emb_dict,"交易日期,记录日期,支付日期,时间")
         head_dict = {k: v.replace("账号","卡号").replace("账户","户名")  for k, v in head_dict.items() if "开户行" not in v }
         head_embeding_dict = EmbedingToolBasic.get_embeding_dict(head_dict)
         embeding_dict = self.field_embeding[agent]
         ret = EmbedingToolBasic.detect_texts_in_texts(head_embeding_dict, embeding_dict,th=0.4)
+        ret["交易日期"] = date_key
         return ret
     
 
