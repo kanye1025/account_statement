@@ -101,24 +101,24 @@ class LLMTool:
 "银行账号":"银行账号，通常是一串数字",
 "账户名":"账户名，通常是人名或公司、机构名，中文汉字",
 "账户名类型":"账户名类型，如果账户名是人名，就返回'个人'，如果是公司、机构名就返回'公司'",
-"开始日期":"开始日期，流水开始的日期，非必须",
-"结束日期":"结束日期，流水结束的日期，非必须"
+"开始日期":"流水的开始日期，通常与结束日期一起出现，在结束日期前面，非必须",
+"结束日期":"流水的结束日期，通常与开始日期一起出现，在开始日期后面，非必须"
 }
     recog_befor_info_des["alipay"] = {
 "支付宝账户":"支付宝账户名，通常是一串英文字母或者阿拉伯数字，或者二者混合",
 "姓名":"人名或者公司、机构名,中文汉字",
 "身份证号码":"身份证号码,通常是一串数字，也可能是一串数字+x结尾,不一定有",
 "姓名类型":"账户类型,如果账户名是人名，就返回个人，如果是公司、机构名就返回公司",
-"开始日期":"开始日期，流水开始的日期，不一定有",
-"结束日期":"结束日期，流水结束的日期，不一定有"
+"开始日期":"流水的开始日期，通常与结束日期一起出现，在结束日期前面，非必须",
+"结束日期":"流水的结束日期，通常与开始日期一起出现，在开始日期后面，非必须"
 }
     recog_befor_info_des["wechat"] = {
 "微信账号":"微信账号，通常是一串英文字母或者阿拉伯数字，或者二者混合",
 "姓名":"人名或者公司、机构名,中文汉字",
 "身份证号码":"身份证号码,通常是一串数字，也可能是一串数字+x结尾,不一定有",
 "姓名类型":"账户类型,如果账户名是人名，就返回个人，如果是公司、机构名就返回公司",
-"开始日期":"开始日期，流水开始的日期，不一定有",
-"结束日期":"结束日期，流水结束的日期，不一定有"
+"开始日期":"流水的开始日期，通常与结束日期一起出现，在结束日期前面，非必须",
+"结束日期":"流水的结束日期，通常与开始日期一起出现，在开始日期后面，非必须"
 }
 
     recog_before_info_prompt = """
@@ -140,7 +140,13 @@ class LLMTool:
 ```
 未识别字段返回"未识别"
 """
-    
+
+    recog_before_info_prompt2 = """问：
+已知，【{key}】是指{des}
+现在有一段文字：
+{text}
+那么，这段文字中的【{key}】是什么？如果没有就回答【未知】
+答：文字里的【{key}】是【"""
     
     before_info_keys = {
         "bank":[
@@ -275,5 +281,39 @@ class LLMTool:
                         else:
                             obj[code] = ""
             temperature*=2.5
+        return obj
+    @classmethod
+    def recog_before_info2(cls, agent_type, text):
+        account_type_dict = {
+            "个人":  "对私",
+            "公司":  "对公",
+            "机构":   "对公",
+            "个人名": "对私",
+            "公司名": "对公",
+            "机构名": "对公",
+            "对私":  "对私",
+            "对公":  "对公",
+            "":    ""
+        }
+        
+        obj = {}
+        for key,des in cls.recog_befor_info_des[agent_type].items():
+            prompt = deepcopy(cls.recog_before_info_prompt2)
+            message = prompt.replace("{text}", text).replace("{key}",key).replace("{des}",des)
+            
+            res = ChatGLM.predict(message, max_length=1024, temperature=0.01,do_sample=False)
+            res = res.split("】")[0]
+            if res in  ("未知","unknown"):
+                res = ""
+            obj[key] = res
+        obj = {cls.before_info_code_dicts[agent_type][k]:v for k,v in obj.items()}
+        
+        
+        
+        if obj["account_type"] in account_type_dict:
+            obj["account_type"] = account_type_dict[obj["account_type"]]
+        else:
+            obj[key] = ""
+        
         return obj
     

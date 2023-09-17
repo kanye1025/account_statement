@@ -89,7 +89,10 @@ class EmbedingToolInfo:
         if pay_type not in ("收入","支出"):return ""
         person_org = "对私" if person_org =="对私" else "对公"  #unknown 也当对公处理
         class_embeding = self.asset_accounts_embeding_dict[person_org][pay_type]
-        return EmbedingToolBasic.classify_by_embeding_dict(class_embeding, text=text)
+        ret =  EmbedingToolBasic.classify_by_embeding_dict(class_embeding, text=text)
+        #asset_accounts_desc_dict = get_asset_accounts_desc_dict()
+        #print(f'{text}->{person_org}:{pay_type}:{ret}:{asset_accounts_desc_dict[person_org][pay_type][ret]}')
+        return ret
     
 
     def get_bank_type(self, head_dict):
@@ -144,13 +147,17 @@ class EmbedingToolInfo:
             
         datetime_dict = {k:v for k,v in head_dict.items() if "时间" in v or "日期" in v}
         head_dict = {k: v for k, v in head_dict.items() if "时间" not in v and "日期"  not in v}
-        datetime_emb_dict = EmbedingToolBasic.get_embeding_dict(datetime_dict)
-        date_key = EmbedingToolBasic.classify_by_embeding_dict(datetime_emb_dict,"交易日期,记录日期,支付日期,时间")
+        
         head_dict = {k: v.replace("账号","卡号").replace("账户","户名")  for k, v in head_dict.items() if "开户行" not in v }
         head_embeding_dict = EmbedingToolBasic.get_embeding_dict(head_dict)
         embeding_dict = self.field_embeding[agent]
         ret = EmbedingToolBasic.detect_texts_in_texts(head_embeding_dict, embeding_dict,th=0.4)
-        ret["交易日期"] = date_key
+        if datetime_dict:
+            datetime_emb_dict = EmbedingToolBasic.get_embeding_dict(datetime_dict)
+            date_key = EmbedingToolBasic.classify_by_embeding_dict(datetime_emb_dict,"交易日期,记录日期,支付日期,时间")
+            ret["交易日期"] = date_key
+        else:
+            ret["交易日期"] = ""
         return ret
     
 

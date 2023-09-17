@@ -63,7 +63,7 @@ class process_row:
                     res3_row[index3] = k
                 else:
                     res3_row[index3] = row_obj[k]
-        return res3_row
+        return res2_row,res3_row
 
 
 
@@ -318,13 +318,13 @@ class RecogInfo:
         head_dict_tmp = deepcopy(head_dict)
         for k,v in self.field_index_dict.items():
             if v:
-                print(k,head_dict_tmp[v])
+                #print(k,head_dict_tmp[v])
                 del head_dict_tmp[v]
-            else:
-                print(k,v)
-        print(head_dict_tmp.values())
+            #else:
+            #    print(k,v)
+        #print(head_dict_tmp.values())
         
-        return
+        #return
         
         
         if self.sub_type =="bank_IE_role":
@@ -335,16 +335,17 @@ class RecogInfo:
 
         
         rets = self.pool.map(process_row(self),self.obj["res2"])
-        self.obj["res3"].extend(rets)
+        res2_row,res3_row = zip(*rets)
+        self.obj["res2"] = res2_row
+        self.obj["res3"] = res3_row
         '''
         for res2_row in self.obj["res2"]:
             res3_row = process_row(res2_row)
-                        
             self.obj["res3"].append(res3_row)
         '''
     def get_before_info(self):
         if self.texts:
-            obj = LLMTool.recog_before_info(self.agent,self.texts)
+            obj = LLMTool.recog_before_info2(self.agent,self.texts)
             if not obj["account_type"]:
                 if obj["account_num"].startswith("62"):
                     obj["account_type"] = '对私'
@@ -393,20 +394,25 @@ class RecogInfo:
                     remark.append(v)
             if remark:
                 text+="资金的用途/备注是："+" ".join(remark)+";"
-            if row_obj["交易类型"]:
-                text += "交易类型是：" + row_obj["交易类型"] + ";"
+            if  row_obj["交易类型"]:
+                text +=  row_obj["交易类型"] + ";"
         elif self.agent == "alipay":
             pay_type = row_obj["收/支"]
             if row_obj["商品说明"]:
                 text+="资金的用途/备注是："+row_obj["商品说明"]+";"
         elif self.agent == "wechat":
             pay_type = row_obj["收/支/其他"]
-            if row_obj["交易方式"] or row_obj["交易类型"]:
-                text+="交易方式/类型是："+row_obj["交易类型"]+row_obj["交易方式"]+";"
-            
+            #if row_obj["交易方式"] or row_obj["交易类型"]:
+            if row_obj["交易类型"]:
+                #text+="交易方式/类型是："+row_obj["交易类型"]+row_obj["交易方式"]+";"
+                #text += row_obj["交易类型"] + ' '+row_obj["交易方式"] + ";"
+                text += row_obj["交易类型"] + ";"
         if trader_nature:
-            text += '交易对方的行业是:' + trader_nature
+            #text += '交易对方的行业是:' + trader_nature
+            text +=  trader_nature
         return self.et.get_account_labelv2(self.obj['res1']["account_type"], pay_type, text)
+        
+        
         
     def get_recoged_obj(self):
         self.get_agent()
@@ -446,8 +452,9 @@ class RecogInfo:
 if __name__ == "__main__":
     #file_path = "data/output/攀德中国银行流水2021年.xlsx.txt"
     #file_path = "data/output/支付宝1.pdf.txt"
-    file_path = "data/output/2022攀农业银行1-9月流水.xls.txt"
-    
+    #file_path = "data/output/2022攀农业银行1-9月流水.xls.txt"
+    #file_path = "data/output/1671079320085_1588774.pdf.txt"
+    file_path = "data/output/支付宝流水.pdf.xlsx.txt"
     #file_path = "data/output/李佳蔚.xlsx.txt"
     torch.multiprocessing.set_start_method('spawn')
     #self.et.init()

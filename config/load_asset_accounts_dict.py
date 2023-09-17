@@ -6,10 +6,11 @@ name_index_dict = {}
 asset_accounts_dict = dict()
 name_code_dict = dict()
 
-def get_personal_consumption_dict():
+def get_personal_consumption_dict(book = None):
     global name_index_dict,personal_consumption_dict
-    if name_code_dict:return personal_consumption_dict,name_index_dict
-    book = xlrd.open_workbook("config/20230925科目标签&居民消费支出分类（对公、对私）.xlsx")
+    if name_index_dict:return personal_consumption_dict,name_index_dict
+    if not book:
+        book = xlrd.open_workbook("config/20230925科目标签&居民消费支出分类（对公、对私）.xlsx")
     sheet = book.sheet_by_name("居民消费分类支出2013")
     
     index = 0
@@ -35,7 +36,7 @@ def get_personal_consumption_dict():
             index+=1
         elif name:
             cur_text.append(name)
-    personal_consumption_dict[cur_name] = cur_name + ":" + ','.join(cur_text)
+    personal_consumption_dict[cur_name] = "消费于 "+cur_name + ":" + ','.join(cur_text)+"等"
     return personal_consumption_dict,name_index_dict
         
     
@@ -70,7 +71,7 @@ def get_asset_accounts_dict():
 
             asset_accounts_dict[public_private][income_expenses][cur_name] = {"use":use,"remark":remark,"counterparty_industry":counterparty_industry,"accounting_entry":accounting_entry}
     
-    personal_consumption_dict,personal_consumption_index = get_personal_consumption_dict()
+    personal_consumption_dict,personal_consumption_index = get_personal_consumption_dict(book)
     for name ,index in personal_consumption_index.items():
         code = "P"+str(index).zfill(2)
         use = personal_consumption_dict[name]
@@ -101,4 +102,4 @@ def get_asset_accounts_desc_dict():
 if __name__ =="__main__":
     asset_accounts_dict,name_code_dict = get_asset_accounts_dict()
     get_asset_accounts_desc_dict()
-    #get_personal_consumption_dict()
+    get_personal_consumption_dict()
