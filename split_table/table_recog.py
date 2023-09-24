@@ -19,6 +19,7 @@ class TableRecog:
     
     
 if __name__ =="__main__":
+    
     file_path  = 'data/input/1672046917570_1364021.pdf'
     from tools.embeding_tool import *
     EmbedingToolBasic.init()

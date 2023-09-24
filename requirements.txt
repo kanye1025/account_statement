@@ -13,3 +13,4 @@ python-Levenshtein
 pdfplumber
 sentence_transformers
 openpyxl
+PyMuPdf
