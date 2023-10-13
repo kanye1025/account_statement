@@ -7,9 +7,9 @@ from tools.embeding_tool_table import *
 from tqdm import tqdm
 import torch
 import traceback
-input_dir = "data/input"
-output_dir ="data/output"
-output_dir2 = "data/output2"
+input_dir = "data/inputa"
+output_dir ="data/outputa"
+output_dir2 = "data/output2a"
 
 if __name__ == "__main__":
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"

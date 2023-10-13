@@ -397,13 +397,15 @@ class RecogInfo:
                 if "备注" in k:
                     remark.append(v)
             if remark:
-                text+="资金的用途/备注是："+" ".join(remark)+";"
+                #text+="资金的用途/备注是："+" ".join(remark)+";"
+                text += ",".join(remark) + ";"
             if  row_obj["交易类型"]:
                 text +=  row_obj["交易类型"] + ";"
         elif self.agent == "alipay":
             pay_type = row_obj["收/支"]
             if row_obj["商品说明"]:
-                text+="资金的用途/备注是："+row_obj["商品说明"]+";"
+                #text+="资金的用途/备注是："+row_obj["商品说明"]+";"
+                text +=  row_obj["商品说明"] + ";"
         elif self.agent == "wechat":
             pay_type = row_obj["收/支/其他"]
             #if row_obj["交易方式"] or row_obj["交易类型"]:
@@ -414,7 +416,7 @@ class RecogInfo:
         if trader_nature:
             #text += '交易对方的行业是:' + trader_nature
             text +=  trader_nature
-        return self.et.get_account_labelv2(self.obj['res1']["account_type"], pay_type, text)
+        return self.et.get_account_labelv3(self.obj['res1']["account_type"], pay_type, text)
         
         
         

@@ -65,8 +65,8 @@ class EmbedingToolInfo:
                 self.asset_accounts_embeding_dict[person_org] = {}
                 self.asset_accounts_tags_embeding_list[person_org] = {}
                 for income_expenditure, v2 in v1.items():
-                    self.asset_accounts_embeding_dict[person_org][income_expenditure] = EmbedingToolBasic.get_embeding_dict(v2)
-                    '''
+                    #self.asset_accounts_embeding_dict[person_org][income_expenditure] = EmbedingToolBasic.get_embeding_dict(v2)
+                    
                     self.asset_accounts_tags_embeding_list[person_org][income_expenditure] = ([],[])
                     for k,v in v2.items():
                         sub_strs = re.split(r'([，。,.;；、\n])', v)
@@ -74,7 +74,7 @@ class EmbedingToolInfo:
                         embedings = EmbedingToolBasic.get_embeding_list(sub_strs)
                         self.asset_accounts_tags_embeding_list[person_org][income_expenditure][0].extend([k]*len(sub_strs))
                         self.asset_accounts_tags_embeding_list[person_org][income_expenditure][1].extend(embedings)
-                    '''
+                    
         print('inited')
 
     def person_or_org(self,text):
@@ -115,8 +115,7 @@ class EmbedingToolInfo:
         tags,embedings = self.asset_accounts_tags_embeding_list[person_org][pay_type]
     
         ret = EmbedingToolBasic.tags_by_embeding_list(tags,embedings, text=text)
-        # asset_accounts_desc_dict = get_asset_accounts_desc_dict()
-        # print(f'{text}->{person_org}:{pay_type}:{ret}:{asset_accounts_desc_dict[person_org][pay_type][ret]}')
+        
         return ret
     def get_bank_type(self, head_dict):
         head_embeding_dict = EmbedingToolBasic.get_embeding_dict(head_dict)

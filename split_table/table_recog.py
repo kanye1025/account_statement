@@ -1,5 +1,5 @@
-from pdf_table_recog import PDFTableRecog
-from excel_table_recog import ExcelTableRecog
+from .pdf_table_recog import PDFTableRecog
+from .excel_table_recog import ExcelTableRecog
 import os
 from io import BytesIO
 class TableRecog:
