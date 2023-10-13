@@ -34,7 +34,7 @@ class PDFTableRecog:
             if t == query_text:
                 return texts_before
             texts_before+=t
-        raise Exception("not match ")
+        return texts_before
     
         
     
@@ -46,7 +46,8 @@ class PDFTableRecog:
         page = self.pdf.pages[0]
         
         table = self.clear_table(page.extract_table())
-        if not table:
+        text = page.extract_text()
+        if not table and len(text)<200:
             ret_obj = {
                 "agent_type":          "",
                 "file_format":         "ImagePDF",
@@ -57,13 +58,17 @@ class PDFTableRecog:
                 "file":                ""}
             return ret_obj
         
-
         
-        text = page.extract_text()
+        if not table:
+            table = text.split('\n')
+            text = ''
+        
+        
         
         head = EmbedingTool.get_head_index(table)[0]
         
         texts_before_table+=self.get_text_before_table(text, table[0])
+        
         tables.append(table[head:])
         rows_before_head = table[:head]
         for row in rows_before_head:
@@ -73,8 +78,12 @@ class PDFTableRecog:
         elif "微信" in texts_before_table:
             agent = "wechat"
         else:
-            agent = "bank"
-        
+            text = page.extract_text()
+            if "银行" in text or "银⾏" in text or "转账" in text \
+                    or "交易" in text or "金额" in text or "支出" in text or "收入" in text:
+                agent = "bank"
+            else:
+                agent = 'other'
 
         ret_obj = {
             "agent_type":          agent,

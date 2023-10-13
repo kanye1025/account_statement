@@ -103,7 +103,26 @@ class EmbedingToolBasic:
         else:
             ret = sorted(ret, key=lambda x: x[1], reverse=True)[:top_k]
             return ret
+
+    @classmethod
+    def tags_by_embeding_list(cls, tags,embedings, text=None, text_emb=None, top_k=None):
+        if not text_emb:
+            text_emb = cls.get_query_embeding(text)
+        
+        
+        q = torch.from_numpy(np.asarray(text_emb, dtype=float)).to(cls.device)
+        ks = torch.from_numpy(np.asarray(embedings, dtype=float)).to(cls.device)
+        similarities = torch.cosine_similarity(q, ks, dim=1).tolist()
     
+        ret = zip(tags, similarities)
+    
+        if not top_k:
+            ret = sorted(ret, key=lambda x: x[1], reverse=True)
+            return ret[0][0]
+        else:
+            ret = sorted(ret, key=lambda x: x[1], reverse=True)[:top_k]
+            return ret
+        
     @classmethod
     def detect_texts_in_texts(cls, embeding_dict_super,embeding_dict_sub,th = 0.0 ):
         pre_dict = {}

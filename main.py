@@ -3,6 +3,7 @@ import json
 
 from split_table.table_recog import TableRecog
 from recog_info.recog_info import RecogInfo
+from tools.embeding_tool_table import *
 from tqdm import tqdm
 import torch
 import traceback
@@ -14,6 +15,7 @@ if __name__ == "__main__":
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
     torch.multiprocessing.set_start_method('spawn')
     '''
+    EmbedingToolTable.init()
     for filename in tqdm(os.listdir(input_dir)):
         try:
             input_path = os.path.join(input_dir,filename)
@@ -24,9 +26,9 @@ if __name__ == "__main__":
         except Exception as e:
             print(filename)
             traceback.print_exc()
-    
-    exit(0)
     '''
+    #exit(0)
+    
     RecogInfo.init()
     for filename in tqdm(os.listdir(output_dir)):
         print(filename)

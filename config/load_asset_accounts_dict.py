@@ -93,11 +93,15 @@ def get_asset_accounts_desc_dict():
                 text = []
                 if obj['use']:
                     text.append(f"资金的用途是:{obj['use']}")
+                    #text.append(obj['use'])
                 if obj['remark']:
                     text.append(f"备注是:{obj['remark']}")
+                    #text.append(obj['remark'])
                 if obj['counterparty_industry']:
                     text.append(f"交易对方的行业是:{obj['counterparty_industry']}")
+                    #text.append(obj['counterparty_industry'])
                 asset_accounts_desc_dict[person_org][income_expenditure][name] =  ';'.join(text)
+                #asset_accounts_desc_dict[person_org][income_expenditure][name] = '\n'.join(text)
     return asset_accounts_desc_dict
 if __name__ =="__main__":
     asset_accounts_dict,name_code_dict = get_asset_accounts_dict()

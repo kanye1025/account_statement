@@ -23,10 +23,9 @@ def _file_classify(file_path,file_data):
         return {"code":402,"success":False}
     
     obj = FileClassify(file_path,file_data).classify()
-    obj["code"] = 400
-    obj["success"] = True
+    
 
-    return obj
+    return {"code":400,'success':True,'data':obj}
 
 
 @app.route(ROOT_PATH+'file_classify/', methods=[ 'POST','GET'])

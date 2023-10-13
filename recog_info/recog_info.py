@@ -68,7 +68,11 @@ class process_row:
 
 
 def _init_(i):
+    
     RecogInfo.et.init(True)
+    import os
+    
+    print(f"thread {i} {os.getpid()} init {RecogInfo.et.inited}")
     
 class RecogInfo:
     date_formats = ["%Y-%m-%d%H:%M:%S",
@@ -454,8 +458,9 @@ if __name__ == "__main__":
     #file_path = "data/output/支付宝1.pdf.txt"
     #file_path = "data/output/2022攀农业银行1-9月流水.xls.txt"
     #file_path = "data/output/1671079320085_1588774.pdf.txt"
-    file_path = "data/output/支付宝流水.pdf.xlsx.txt"
+    #file_path = "data/output/支付宝流水.pdf.xlsx.txt"
     #file_path = "data/output/李佳蔚.xlsx.txt"
+    file_path = "data/output1a/建行.xls.txt"
     torch.multiprocessing.set_start_method('spawn')
     #self.et.init()
     CONF.max_worker = 1
@@ -465,5 +470,5 @@ if __name__ == "__main__":
         with open ('data/out.json','w',encoding='utf-8') as fo:
             obj = json.load(f)
             obj = RecogInfo(obj).get_recoged_obj()
-            json.dump(obj['res3'],fo,ensure_ascii=False)
+            json.dump(obj,fo,ensure_ascii=False)
     

@@ -7,6 +7,7 @@ from config.config import CONF
 import os
 from copy import deepcopy
 import inspect
+import re
 #process =  ExecProcess()
 class EmbedingToolInfo:
     
@@ -58,18 +59,32 @@ class EmbedingToolInfo:
             
             asset_accounts_desc_dict = get_asset_accounts_desc_dict()
             self.asset_accounts_embeding_dict = {}
+            self.asset_accounts_tags_embeding_list = {}
+            
             for person_org, v1 in asset_accounts_desc_dict.items():
                 self.asset_accounts_embeding_dict[person_org] = {}
+                self.asset_accounts_tags_embeding_list[person_org] = {}
                 for income_expenditure, v2 in v1.items():
                     self.asset_accounts_embeding_dict[person_org][income_expenditure] = EmbedingToolBasic.get_embeding_dict(v2)
-        
+                    '''
+                    self.asset_accounts_tags_embeding_list[person_org][income_expenditure] = ([],[])
+                    for k,v in v2.items():
+                        sub_strs = re.split(r'([，。,.;；、\n])', v)
+                        sub_strs = [i for i in sub_strs if i and i not in "，。,.;；、\n"]
+                        embedings = EmbedingToolBasic.get_embeding_list(sub_strs)
+                        self.asset_accounts_tags_embeding_list[person_org][income_expenditure][0].extend([k]*len(sub_strs))
+                        self.asset_accounts_tags_embeding_list[person_org][income_expenditure][1].extend(embedings)
+                    '''
         print('inited')
 
     def person_or_org(self,text):
-    
-        score_dict = {k: v for k, v in
-                      EmbedingToolBasic.classify_by_embeding_dict(self.person_organization_embeding, text,
-                                                                  top_k=2)}
+        try:
+            score_dict = {k: v for k, v in
+                          EmbedingToolBasic.classify_by_embeding_dict(self.person_organization_embeding, text,
+                                                                      top_k=2)}
+        except Exception as e:
+            print(os.getpid())
+            pass
         if len(text) <= 3 and "支付" not in text and "微信" not in text and "财付通" not in text:
             score_dict["PERSON"] += 0.1
         if "公司" in text or "银行" in text :
@@ -93,8 +108,16 @@ class EmbedingToolInfo:
         #asset_accounts_desc_dict = get_asset_accounts_desc_dict()
         #print(f'{text}->{person_org}:{pay_type}:{ret}:{asset_accounts_desc_dict[person_org][pay_type][ret]}')
         return ret
-    
 
+    def get_account_labelv3(self, person_org, pay_type, text):
+        if pay_type not in ("收入", "支出"): return ""
+        person_org = "对私" if person_org == "对私" else "对公"  # unknown 也当对公处理
+        tags,embedings = self.asset_accounts_tags_embeding_list[person_org][pay_type]
+    
+        ret = EmbedingToolBasic.tags_by_embeding_list(tags,embedings, text=text)
+        # asset_accounts_desc_dict = get_asset_accounts_desc_dict()
+        # print(f'{text}->{person_org}:{pay_type}:{ret}:{asset_accounts_desc_dict[person_org][pay_type][ret]}')
+        return ret
     def get_bank_type(self, head_dict):
         head_embeding_dict = EmbedingToolBasic.get_embeding_dict(head_dict)
         
