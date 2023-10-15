@@ -27,16 +27,16 @@ def get_personal_consumption_dict(book = None):
         name = row[3].value.strip()
         if code:
             if cur_code:
-                personal_consumption_dict[cur_name] =cur_name+":"+ ','.join(cur_text)
+                personal_consumption_dict["消费_"+cur_name] ="消费于 "+cur_name+":"+ ','.join(cur_text)+"等"
             cur_code = code
             
             cur_text = list()
             cur_name = name
-            name_index_dict[name] = index
+            name_index_dict["消费_"+name] = index
             index+=1
         elif name:
             cur_text.append(name)
-    personal_consumption_dict[cur_name] = "消费于 "+cur_name + ":" + ','.join(cur_text)+"等"
+    personal_consumption_dict["消费_"+cur_name] = "消费于 "+cur_name + ":" + ','.join(cur_text)+"等"
     return personal_consumption_dict,name_index_dict
         
     
@@ -92,14 +92,14 @@ def get_asset_accounts_desc_dict():
             for name,obj in v2.items():
                 text = []
                 if obj['use']:
-                    text.append(f"资金的用途是:{obj['use']}")
-                    #text.append(obj['use'])
+                    #text.append(f"资金的用途是:{obj['use']}")
+                    text.append(obj['use']+';')
                 if obj['remark']:
-                    text.append(f"备注是:{obj['remark']}")
-                    #text.append(obj['remark'])
+                    #text.append(f"备注是:{obj['remark']}")
+                    text.append(obj['remark']+';')
                 if obj['counterparty_industry']:
-                    text.append(f"交易对方的行业是:{obj['counterparty_industry']}")
-                    #text.append(obj['counterparty_industry'])
+                    #text.append(f"交易对方的行业是:{obj['counterparty_industry']}")
+                    text.append(obj['counterparty_industry']+';')
                 asset_accounts_desc_dict[person_org][income_expenditure][name] =  ';'.join(text)
                 #asset_accounts_desc_dict[person_org][income_expenditure][name] = '\n'.join(text)
     return asset_accounts_desc_dict

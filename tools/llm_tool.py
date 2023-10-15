@@ -1,98 +1,16 @@
-from transformers import AutoModel, AutoTokenizer
-from config.config import CONF
+
 from config import dicts
-import torch
+from functools import lru_cache
 #from peft import PeftModel
 from copy import deepcopy
-import re
+from .chatglm import ChatGLM
+from .baichuan import Baichuan
+from config.load_asset_accounts_dict import get_asset_accounts_desc_dict
+
 from collections import Counter
 
 import json
 
-class ChatGLM:
-    @classmethod
-    def init(cls):
-        # peft_model = "/root/autodl-tmp/FinGPT_v31_ChatGLM2_Sentiment_Instruction_LoRA_FT"
-        cls.tokenizer = AutoTokenizer.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
-        cls.model = AutoModel.from_pretrained(CONF.llm_model_path, trust_remote_code=True)
-        # model = PeftModel.from_pretrained(model, peft_model)
-        if torch.cuda.is_available() and CONF.GPU:
-            cls.model = cls.model.cuda()
-            cls.device = torch.device("cuda")
-            print("use gpu ")
-        else:
-            cls.model = cls.model.float()
-            cls.device = torch.device("cpu")
-            print("use cpu")
-        cls.model.eval()
-    @classmethod
-    def predict(cls, txt, max_length=256, temperature=0.75,do_sample = True,**kwargs):
-        inputs = cls.tokenizer([txt], return_tensors="pt").to(cls.device)
-        gen_kwargs = {"max_length":  max_length, "do_sample": do_sample,
-                      "temperature": temperature, **kwargs}
-        outputs = cls.model.generate(**inputs, **gen_kwargs)
-        outputs = outputs.tolist()[0][len(inputs["input_ids"][0]):]
-        response = cls.tokenizer.decode(outputs)
-        response = cls.process_response(response)
-        '''
-        if top_p:
-            response, history = cls.model.generate(cls.tokenizer, txt, top_p=top_p, max_length=max_length,do_sample = do_sample)
-        else:
-            response, history = cls.model.generate(cls.tokenizer, txt, temperature=temperature, max_length=max_length,do_sample = do_sample)
-        '''
-        return response
-
-    @classmethod
-    def process_response(cls, response):
-        response = response.strip()
-        response = response.replace("[[训练时间]]", "2023年")
-        punkts = [
-            [",", "，"],
-            ["!", "！"],
-            [":", "："],
-            [";", "；"],
-            ["\?", "？"],
-        ]
-        for item in punkts:
-            response = re.sub(r"([\u4e00-\u9fff])%s" % item[0], r"\1%s" % item[1], response)
-            response = re.sub(r"%s([\u4e00-\u9fff])" % item[0], r"%s\1" % item[1], response)
-        return response
-    @classmethod
-    def predict_respond_json(cls, txt,  max_length=8196, temperatures=[0.01,0.35,0.75,1]):
-        txt = "问:"+txt+"\n\n答:好的，根据上面的信息提取的json数据为\n```{"
-        for temperature in temperatures:
-            try:
-                respond = cls.predict(txt,max_length=max_length,temperature = temperature,do_sample = True)
-                respond = '{'+respond
-                obj = cls.analysis_json_obj(respond)
-                return obj
-            except Exception as e :
-                print(e.args)
-                continue
-        raise Exception(f"wrong respond:  text:{txt}")
-
-    @classmethod
-    def predict_respond_json2(cls, txt,json_pre, max_length=8196, temperatures=[0.01, 0.35, 0.75, 1]):
-        txt = txt+json_pre
-        for temperature in temperatures:
-            try:
-                respond = cls.predict(txt, max_length=max_length, temperature=temperature, do_sample=False)
-                respond = json_pre + respond
-                obj = cls.analysis_json_obj(respond)
-                return obj
-            except Exception as e:
-                print(e.args)
-                continue
-        raise Exception(f"wrong respond:  text:{txt}")
-    @classmethod
-    def analysis_json_obj(cls, respond):
-        try:
-            p = r"\{[\s\S]*\}"
-            response = re.search(p, respond)
-            response = response.group()
-            return json.loads(response)
-        except Exception as e:
-            raise Exception(f"wrong respond:{respond}")
 class LLMTool:
     
     recog_befor_info_des = {}
@@ -189,10 +107,24 @@ class LLMTool:
 ```
 请返回提取后的json
 """
-    
+
+    account_label_prompt = """已知交易流水的类型标签和说明（格式为 标签类型-->标签说明）：
+{des}
+请判断下列交易流水信息的标签类型，并返回如下json
+```{
+"标签类型":""
+}```
+取值只能为{key}中的一个,
+流水信息：
+{text}
+
+"""
+    asset_accounts_desc_dict = get_asset_accounts_desc_dict()
+    baichuan = Baichuan()
     @classmethod
     def init(cls):
-        ChatGLM.init()
+        #ChatGLM.init()
+        pass
     @classmethod
     def recog_field(cls,agent_type,head_value_dict):
         value_head_dict = {v:h for h,v in head_value_dict.items()}
@@ -213,7 +145,8 @@ class LLMTool:
             json_format = json.dumps(json_format,ensure_ascii=False)
             message = prompt.replace("{table_text}",table_text).replace("{field_text}",field_text).replace("{json_format}",json_format)
             #ret = ChatGLM.predict(message,max_length=8096,temperature =temperature,do_sample=False)
-            resobj = ChatGLM.predict_respond_json(message,1024,temperatures=[temperature,temperature*2,temperature*4])
+            #resobj = ChatGLM.predict_respond_json(message,1024,temperatures=[temperature,temperature*2,temperature*4])
+            resobj = cls.baichuan.predict_respond_json(message,1024,temperatures=[temperature,temperature*2,temperature*4])
             c = Counter()
             for v in resobj.values():
                 c.update({v:1})
@@ -266,7 +199,8 @@ class LLMTool:
                 replace("{des}",json.dumps(recog_befor_info_des,ensure_ascii=False)).\
                 replace("{json}",json.dumps({k:"" for k,v in recog_befor_info_des.items()},ensure_ascii=False))
             #print("begin predict base info")
-            resobj = ChatGLM.predict_respond_json(message, max_length=1024,temperatures = [temperature])
+            #resobj = ChatGLM.predict_respond_json(message, max_length=1024,temperatures = [temperature])
+            resobj = cls.baichuan.predict_respond_json(message, max_length=1024, temperatures=[temperature])
             #print("end predict base info")
 
             for code in cls.before_info_keys[agent_type]:
@@ -285,6 +219,7 @@ class LLMTool:
     @classmethod
     def recog_before_info2(cls, agent_type, text):
         account_type_dict = {
+            "人名": "对私",
             "个人":  "对私",
             "公司":  "对公",
             "机构":   "对公",
@@ -301,7 +236,8 @@ class LLMTool:
             prompt = deepcopy(cls.recog_before_info_prompt2)
             message = prompt.replace("{text}", text).replace("{key}",key).replace("{des}",des)
             
-            res = ChatGLM.predict(message, max_length=1024, temperature=0.01,do_sample=False)
+            #res = ChatGLM.predict(message, max_length=1024, temperature=0.01,do_sample=False)
+            res = cls.baichuan.predict(message, max_length=1024, temperature=0.01, do_sample=False)
             res = res.split("】")[0]
             if res in  ("未知","unknown"):
                 res = ""
@@ -317,3 +253,18 @@ class LLMTool:
         
         return obj
     
+    @classmethod
+    @lru_cache(None)
+    def get_account_labelv2(cls, person_org,pay_type, text):
+        if pay_type not in ("收入","支出"):return ""
+        person_org = "对私" if person_org =="对私" else "对公"  #unknown 也当对公处理
+        account_label_des = cls.asset_accounts_desc_dict[person_org][pay_type]
+        des = '\n'.join([f"{k}-->{v}"for k,v in account_label_des.items()])
+        prompt = deepcopy(cls.account_label_prompt)
+        message = prompt.replace("{text}", text).replace("{des}", des).replace("{key}",str([i for i in account_label_des.keys()]))
+        #obj = ChatGLM.predict_respond_json(message)
+        obj = cls.baichuan.predict_respond_json2(message,'{"标签类型":',temperatures=[0.01,0.3,0.75])
+        print(f"{[person_org,pay_type,text]}-->{obj['标签类型']}")
+        if obj["标签类型"] not in account_label_des.keys():
+            return ""
+        return obj["标签类型"]
