@@ -4,7 +4,7 @@ from tools.embeding_tool_info import EmbedingToolInfo as EmbedingTool
 from tools.llm_tool import LLMTool
 from config.load_asset_accounts_dict import get_asset_accounts_dict
 from collections import Counter
-from sample_writer import SampleWriter
+from .sample_writer import SampleWriter
 import Levenshtein
 from multiprocessing import Pool
 import datetime
@@ -12,8 +12,8 @@ from multiprocessing import cpu_count
 from collections import defaultdict
 from tools.embeding_tool import *
 from copy import  deepcopy
-from prompt import Prompts
-from recog_info_config  import load_label_config
+from .prompt import Prompts
+from .recog_info_config  import load_label_config
 from config.load_asset_accounts_dict import get_personal_consumption_dict
 from functools import lru_cache
 class process_row:
@@ -428,7 +428,8 @@ class RecogInfo:
         if self.sample_writer:
             self.sample_writer.add_head(self.file_name,head.values())
         p = process_row(self)
-        rets = [p(self.obj["res2"][i]) for i in  range(0,len(self.obj["res2"][:30]),3)    ]#todo
+        #rets = [p(self.obj["res2"][i]) for i in  range(0,len(self.obj["res2"][:30]),3)    ]#todo
+        rets = [p(self.obj["res2"][i]) for i in  range(0,len(self.obj["res2"]))    ]
         #rets = self.pool.map(process_row(self),self.obj["res2"])
         res2_row,res3_row = zip(*rets)
         self.obj["res2"] = res2_row
@@ -524,15 +525,17 @@ class RecogInfo:
                         if d == min_distance:
                             obj["bank_name"] = code
             self.obj['res1'].update(obj)
+            if "begin_date" in self.obj['res1']:
+                self.obj['res1']["begin_date"] = self.normalize_date_format(self.obj['res1']["begin_date"])
+            if "end_date" in self.obj['res1']:
+                self.obj['res1']["end_date"] = self.normalize_date_format(self.obj['res1']["end_date"])
+
+            self.account_class = self.get_account_class(obj["account_name"]) if obj["account_name"] else ""
         else:
             self.obj['res1']["account_type"] = "unknown"
+            self.account_class = ""
     
-        if "begin_date" in self.obj['res1']:
-            self.obj['res1']["begin_date"] = self.normalize_date_format(self.obj['res1']["begin_date"])
-        if "end_date" in self.obj['res1']:
-            self.obj['res1']["end_date"] = self.normalize_date_format(self.obj['res1']["end_date"])
 
-        self.account_class = self.get_account_class(obj["account_name"]) if obj["account_name"] else ""
             
     def get_accounting_entry(self,row_obj,accounting_item):
         account_type = "对公" if self.obj['res1']["account_type"] =="unknown" else self.obj['res1']["account_type"]

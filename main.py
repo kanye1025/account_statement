@@ -29,7 +29,8 @@ if __name__ == "__main__":
             traceback.print_exc()
     '''
     #exit(0)
-    sw = SampleWriter()
+    #sw = SampleWriter()
+    sw = None
     RecogInfo.init()
     #for filename in tqdm(os.listdir(output_dir)):
     for filename in os.listdir(output_dir):
@@ -46,4 +47,4 @@ if __name__ == "__main__":
         except Exception as e:
             print(filename)
             traceback.print_exc()
-    sw.to_excel('data/samples.xlsx')
+    #sw.to_excel('data/samples.xlsx')
