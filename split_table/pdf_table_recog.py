@@ -4,6 +4,7 @@ from io import BytesIO
 import pdfplumber
 from tools.embeding_tool_table import EmbedingToolTable as EmbedingTool
 import numpy as np
+from error.error import Error
 class PDFTableRecog:
     
     def __init__(self,file):
@@ -64,6 +65,8 @@ class PDFTableRecog:
         page = self.pdf.pages[0]
         
         table = self.clear_table(page.extract_table())
+        if not table:
+            raise Error(301,"Type error")
         
         text = page.extract_text()
         

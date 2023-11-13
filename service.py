@@ -10,6 +10,8 @@ from tools.embeding_tool_table import EmbedingToolTable as EmbedingTool
 from split_table.table_recog import TableRecog
 from config.config import CONF
 from io import BytesIO
+from error.error import Error
+
 app = flask.Flask(__name__)
 
 
@@ -32,6 +34,7 @@ def _form_recognition(file_path,file_data):
     #data['file_data'] =   bytes(data['file_data'], encoding = "utf-8")
 
     obj = TableRecog(file_path,file_data).get_table_data()
+
     res = {"code":300,"message":"Success","data":obj}
     return res
 
@@ -43,6 +46,11 @@ def form_recognition():
         file_data = request.form["data"]
         file_data =  base64.b64decode(file_data)
         res = _form_recognition(file_path,file_data)
+        return json.dumps(res,ensure_ascii=False)
+    except Error as e:
+        msg = traceback.format_exc()
+        logging.error("res1 ERROR request:" + str(request.data) + '  traceback:' + msg)
+        res = {"code":e.code,"message":e.msg}
         return json.dumps(res,ensure_ascii=False)
     except Exception as e:
         msg = traceback.format_exc()

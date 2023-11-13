@@ -120,7 +120,9 @@ class LLMTool:
 
 """
     asset_accounts_desc_dict = get_asset_accounts_desc_dict()
-    baichuan = Baichuan()
+    llm = Baichuan()
+    #llm = ChatGLM()
+    
     @classmethod
     def init(cls):
         #ChatGLM.init()
@@ -146,7 +148,7 @@ class LLMTool:
             message = prompt.replace("{table_text}",table_text).replace("{field_text}",field_text).replace("{json_format}",json_format)
             #ret = ChatGLM.predict(message,max_length=8096,temperature =temperature,do_sample=False)
             #resobj = ChatGLM.predict_respond_json(message,1024,temperatures=[temperature,temperature*2,temperature*4])
-            resobj = cls.baichuan.predict_respond_json(message,1024,temperatures=[temperature,temperature*2,temperature*4])
+            resobj = cls.llm.predict_respond_json(message,1024,temperatures=[temperature,temperature*2,temperature*4])
             c = Counter()
             for v in resobj.values():
                 c.update({v:1})
@@ -200,7 +202,7 @@ class LLMTool:
                 replace("{json}",json.dumps({k:"" for k,v in recog_befor_info_des.items()},ensure_ascii=False))
             #print("begin predict base info")
             #resobj = ChatGLM.predict_respond_json(message, max_length=1024,temperatures = [temperature])
-            resobj = cls.baichuan.predict_respond_json(message, max_length=1024, temperatures=[temperature])
+            resobj = cls.llm.predict_respond_json(message, max_length=1024, temperatures=[temperature])
             #print("end predict base info")
 
             for code in cls.before_info_keys[agent_type]:
@@ -237,7 +239,7 @@ class LLMTool:
             message = prompt.replace("{text}", text).replace("{key}",key).replace("{des}",des)
             
             #res = ChatGLM.predict(message, max_length=1024, temperature=0.01,do_sample=False)
-            res = cls.baichuan.predict(message, max_length=1024, temperature=0.01, do_sample=False)
+            res = cls.llm.predict(message, max_length=1024, temperature=0.01, do_sample=False)
             res = res.split("】")[0]
             if res in  ("未知","unknown"):
                 res = ""
@@ -263,7 +265,7 @@ class LLMTool:
         prompt = deepcopy(cls.account_label_prompt)
         message = prompt.replace("{text}", text).replace("{des}", des).replace("{key}",str([i for i in account_label_des.keys()]))
         #obj = ChatGLM.predict_respond_json(message)
-        obj = cls.baichuan.predict_respond_json2(message,'{"标签类型":',temperatures=[0.01,0.3,0.75])
+        obj = cls.llm.predict_respond_json2(message,'{"标签类型":',temperatures=[0.01,0.3,0.75])
         print(f"{[person_org,pay_type,text]}-->{obj['标签类型']}")
         if obj["标签类型"] not in account_label_des.keys():
             return ""

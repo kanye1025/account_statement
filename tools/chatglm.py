@@ -1,5 +1,6 @@
 from transformers import AutoModel, AutoTokenizer
 import torch
+import json
 from config.config import CONF
 import re
 class ChatGLM:
@@ -22,7 +23,8 @@ class ChatGLM:
     @classmethod
     def predict(cls, txt, max_length=256, temperature=0.75,do_sample = True,**kwargs):
         inputs = cls.tokenizer([txt], return_tensors="pt").to(cls.device)
-        gen_kwargs = {"max_length":  max_length, "do_sample": do_sample,
+        gen_kwargs = {"max_length":  max_length,
+                      "do_sample":do_sample,
                       "temperature": temperature, **kwargs}
         outputs = cls.model.generate(**inputs, **gen_kwargs)
         outputs = outputs.tolist()[0][len(inputs["input_ids"][0]):]
@@ -52,11 +54,11 @@ class ChatGLM:
             response = re.sub(r"%s([\u4e00-\u9fff])" % item[0], r"%s\1" % item[1], response)
         return response
     @classmethod
-    def predict_respond_json(cls, txt,  max_length=8196, temperatures=[0.01,0.35,0.75,1]):
-        txt = "问:"+txt+"\n\n答:好的，根据上面的信息提取的json数据为\n```{"
+    def predict_respond_json(cls, txt,  max_length=8196, temperatures=[0.01,0.35,0.75,1],do_sample = True):
+        txt = "问:" + txt + "\n\n答:好的，提取的json数据为\n```{"
         for temperature in temperatures:
             try:
-                respond = cls.predict(txt,max_length=max_length,temperature = temperature,do_sample = True)
+                respond = cls.predict(txt,max_length=max_length,temperature = temperature,do_sample = do_sample)
                 respond = '{'+respond
                 obj = cls.analysis_json_obj(respond)
                 return obj
@@ -66,12 +68,12 @@ class ChatGLM:
         raise Exception(f"wrong respond:  text:{txt}")
 
     @classmethod
-    def predict_respond_json2(cls, txt,json_pre, max_length=8196, temperatures=[0.01, 0.35, 0.75, 1]):
-        txt = txt+json_pre
+    def predict_respond_json2(cls, txt,pre, max_length=8196, temperatures=[0.01, 0.35, 0.75, 1],do_sample=True):
+        txt = "问:" + txt + "\n\n答:好的，提取的json数据为\n```" + pre
         for temperature in temperatures:
             try:
-                respond = cls.predict(txt, max_length=max_length, temperature=temperature, do_sample=False)
-                respond = json_pre + respond
+                respond = cls.predict(txt, max_length = max_length,temperature=temperature, do_sample=do_sample)
+                respond = pre + respond
                 obj = cls.analysis_json_obj(respond)
                 return obj
             except Exception as e:

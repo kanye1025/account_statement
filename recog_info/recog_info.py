@@ -4,7 +4,7 @@ from tools.embeding_tool_info import EmbedingToolInfo as EmbedingTool
 from tools.llm_tool import LLMTool
 from config.load_asset_accounts_dict import get_asset_accounts_dict
 from collections import Counter
-
+from sample_writer import SampleWriter
 import Levenshtein
 from multiprocessing import Pool
 import datetime
@@ -12,6 +12,10 @@ from multiprocessing import cpu_count
 from collections import defaultdict
 from tools.embeding_tool import *
 from copy import  deepcopy
+from prompt import Prompts
+from recog_info_config  import load_label_config
+from config.load_asset_accounts_dict import get_personal_consumption_dict
+from functools import lru_cache
 class process_row:
     def __init__(self,ri):
         self.ri = ri
@@ -35,9 +39,51 @@ class process_row:
         
         
         if not res3_row["header_row"] :
-            _,res2_row["trader_nature"] = self.ri.get_org_type(self.ri.agent_type, row_obj)
-            res2_row["accounting_item"] =self.ri.predict_account_labelv2(row_obj,res2_row["trader_nature"])
-            res2_row["accouting_entry"] = self.ri.get_accounting_entry(row_obj,res2_row["accounting_item"])
+            _,trader_nature = self.ri.get_org_type(self.ri.agent_type, row_obj)
+
+            row_data = {}
+            for k, v in res2_row.items():
+                if '.' in k:
+                    k = k.split('.')[1]
+                    field_name = self.ri.head[k]
+                    row_data[field_name] = self.ri.normalize_digit_str(v)
+                # row = self.get_fields(row_data)
+
+                # row['交易对手账户']["账户类型"] = self.get_account_class(row["交易对手账户"]["户名"])
+            #print(self.get_label(json.dumps(row_data, ensure_ascii=False)))
+            text = ""
+            if self.ri.agent == "bank":
+                pay_type = row_obj["收支类型"]
+            elif self.ri.agent == "alipay":
+                pay_type = row_obj["收/支"]
+            elif self.ri.agent == "wechat":
+                pay_type = row_obj["收/支/其他"]
+
+            account_label = {}
+            account_label["accounting_item"],account_label["accouting_entry"] =self.ri.predict_account_labelv2(row_obj,pay_type,trader_nature,row_data)
+            if self.ri.account_class ==  "理财账户":
+                account_label["N-accounting_item"] = "Z0201理财资产"
+            elif self.ri.account_class ==  "信用账户":
+                account_label["N-accounting_item"] = "F0401信用卡"
+            else:
+                account_label["N-accounting_item"] = "Z0701账户余额"
+
+            if account_label["N-accounting_item"] == "F0401信用卡":
+                account_label["N-accouting_entry"] = "减少"  if pay_type == "收入"  else "增加"
+            else:
+                account_label["N-accouting_entry"] = "减少" if pay_type == "支出" else "增加"
+
+
+            res2_row['account_label'] = account_label
+
+            row_label = {}
+            row_label["header_row"] = res2_row['header_row']
+            row_label["trader_nature"] = trader_nature
+            row_label["in_spend_type"] = pay_type
+            res2_row["row_label"] = row_label
+
+
+            # = self.ri.get_accounting_entry(row_obj,res2_row["accounting_item"])
 
         field_list = list(dicts.field_code_name_dict[self.ri.agent_type].values())
 
@@ -63,6 +109,7 @@ class process_row:
                     res3_row[index3] = k
                 else:
                     res3_row[index3] = row_obj[k]
+        del res2_row['header_row']
         return res2_row,res3_row
 
 
@@ -88,6 +135,9 @@ class RecogInfo:
                     
                     ]
     et = EmbedingTool()
+    llm = LLMTool.llm
+    lable_conf = load_label_config()
+    consumption_dict, consumption_index_dict = get_personal_consumption_dict()
     @classmethod
     def init(cls):
         
@@ -101,12 +151,13 @@ class RecogInfo:
         
     
         
-    def __init__(self,obj):
+    def __init__(self,obj,file_name = None,sample_writer = None):
         self.obj = obj
         self.texts = '\n'.join([i['txt'] for i in obj['res1']['outside_infos']])
         if not self.texts.replace('\n', '').replace(' ', '').replace('\t', ''):
             self.texts = None
-        
+        self.file_name = file_name
+        self.sample_writer = sample_writer
 
     def str_to_float(self,s):
         s = s.replace(',','')
@@ -261,7 +312,7 @@ class RecogInfo:
                 for k,v in row.items() :
                     if '.' in k:
                         k = k.split('.')[1]
-                        if k  in head_dict and k not in sample_dict  :
+                        if k  in head_dict and k not in sample_dict:
                             v = v.replace('-', '').replace('——', '').replace(' ','').strip()
                             if not v: continue
                             if v in sample_dict.values(): continue
@@ -283,12 +334,24 @@ class RecogInfo:
         counterparty = row_obj[counterparty_key]
         if not counterparty: return "",""
         #if self.et.person_or_org(counterparty) != "ORG":
-        if self.et.person_or_org(counterparty) != "ORG":
+        person_org = self.et.person_or_org(counterparty)
+        if person_org=='PERSON':
+            return "","个人"
+        if person_org != "ORG":
             return "",""
 
         #counterparty = counterparty.replace()
         return self.et.get_org_type(counterparty)
-
+    def normalize_digit_str(self,s):
+        if ',' in s:
+            s_ = s.replace(',','')
+            try:
+                float(s_)
+                return s_
+            except:
+                return s
+        else:
+            return s
     def field_align(self):
         self.agent_type = self.obj["res1"]['agent_type']
         self.obj["res3"] = list()
@@ -336,8 +399,36 @@ class RecogInfo:
         else:
             self.account,self.id = None,None
 
+        head_row = self.obj['res2'][0]
+        i = 0
+        head = dict()
+        while True:
+            i += 1
+            key = f'1.{i}'
+            if key in head_row:
+                head[str(i)] = head_row[key]
+            else:
+                break
+
+        # head = self.clear_head(head)
+        for k, v in head.items():
+            v = v.replace('[', "").replace(']', "").replace('{', "").replace('}', "").replace('.', "").replace('(',
+                                                                                                               "").replace(
+                ')', "")
+            tmp_v = list()
+            for w in v:
+                if w.encode('utf-8').isalpha():
+                    continue
+                tmp_v.append(w)
+            head[k] = ''.join(tmp_v).strip()
+
+
+
+        self.head = head
+        if self.sample_writer:
+            self.sample_writer.add_head(self.file_name,head.values())
         p = process_row(self)
-        rets = [p(record) for record in self.obj["res2"]]
+        rets = [p(self.obj["res2"][i]) for i in  range(0,len(self.obj["res2"][:30]),3)    ]#todo
         #rets = self.pool.map(process_row(self),self.obj["res2"])
         res2_row,res3_row = zip(*rets)
         self.obj["res2"] = res2_row
@@ -347,6 +438,72 @@ class RecogInfo:
             res3_row = process_row(res2_row)
             self.obj["res3"].append(res3_row)
         '''
+
+    account_class_dict = {
+        "理财账户": ["余额宝", "零钱通", "理财", "基金", "信托"],
+        "信用账户": ["信用", "花呗", "亲情卡"]
+    }
+
+    def get_account_class(self, account_name):
+        for k, v in self.account_class_dict.items():
+            for n in v:
+                if n in account_name:
+                    return k
+        # return "借记账户"
+        return ""
+
+    def get_consume_label(self, row):
+
+        text = '\n'.join([f'{k}:{v}'for k,v in row.items()])
+
+        prompt = Prompts.create_prompt(Prompts.consume_label_prompt,
+                                       {"text": text, "key": str([i for i in self.consumption_index_dict.keys()])})
+
+        obj = self.llm.predict_respond_json2(prompt, """{"消费类型":""")
+        # print(f"{obj['消费类型']}")
+        if obj["消费类型"] not in self.consumption_index_dict:
+            return "P03消费支出"
+        num = str(self.consumption_index_dict[obj["消费类型"]]).rjust(2, '0')
+        return f"""P03{num}{obj["消费类型"]}"""
+
+    @lru_cache(None)
+    def get_label(self, pay_type,trader_nature,row_str):
+        row = json.loads(row_str)
+
+        if pay_type not in ("收入", "支出"):
+            return ""
+        row['对方所属行业'] = trader_nature
+        person_org = self.obj['res1']["account_type"]
+
+        person_org = "对私" if person_org == "对私" else "对公"  # unknown 也当对公处理
+        account_label_dict = self.lable_conf[(person_org, pay_type)]
+        des = '\n'.join([f"{k}-->{v[0]}" for k, v in account_label_dict.items()])
+
+
+        text = '\n'.join([f'{k}:{v}' for k,v in row.items() if v and '支出' not in v and '收入' not in v ])
+
+        text = text.replace("货款", "货物款")
+        prompt = Prompts.create_prompt(Prompts.account_label_prompt,
+                                       {"text": text, "des": des, "key": str([i for i in account_label_dict.keys()])})
+        print(person_org,pay_type)
+        print(text)
+        obj = self.llm.predict_respond_json2(prompt, """{"标签类型":""")
+
+        # print(f"{[person_org,pay_type,text]}-->{obj['标签类型']}")
+        if obj["标签类型"] not in account_label_dict:
+            return ""
+        if obj["标签类型"] == "P03消费支出":
+            ret = self.get_consume_label(row)
+            print(ret)
+            print('-' * 20)
+            if self.sample_writer:
+                self.sample_writer.add_sample(self.file_name, ret, person_org, pay_type, row)
+            return ret, "增加"
+        print(obj)
+        print('-' * 20)
+        if self.sample_writer:
+            self.sample_writer.add_sample(self.file_name,obj["标签类型"],person_org,pay_type,row)
+        return obj["标签类型"], account_label_dict[obj["标签类型"]][1]
     def get_before_info(self):
         if self.texts:
             obj = LLMTool.recog_before_info2(self.agent,self.texts)
@@ -374,7 +531,8 @@ class RecogInfo:
             self.obj['res1']["begin_date"] = self.normalize_date_format(self.obj['res1']["begin_date"])
         if "end_date" in self.obj['res1']:
             self.obj['res1']["end_date"] = self.normalize_date_format(self.obj['res1']["end_date"])
-    
+
+        self.account_class = self.get_account_class(obj["account_name"]) if obj["account_name"] else ""
             
     def get_accounting_entry(self,row_obj,accounting_item):
         account_type = "对公" if self.obj['res1']["account_type"] =="unknown" else self.obj['res1']["account_type"]
@@ -383,75 +541,20 @@ class RecogInfo:
         if not pay_type or pay_type=="其他":
             return ""
         if not accounting_item :return ""
-        asset_accounts_dict, name_code_dict = get_asset_accounts_dict()
-        return asset_accounts_dict[account_type][pay_type][accounting_item]['accounting_entry']
+        return self.lable_conf[(account_type, pay_type)][accounting_item][1]
+        #asset_accounts_dict, name_code_dict = get_asset_accounts_dict()
+
+        #return asset_accounts_dict[account_type][pay_type][accounting_item]['accounting_entry']
     
 
 
-    def predict_account_labelv2(self, row_obj,trader_nature):
-        text = ""
-        if self.agent == "bank":
-            pay_type = row_obj["收支类型"]
-            remark = list()
-            for k,v in row_obj.items():
-                if "备注" in k:
-                    remark.append(v)
-            if remark:
-                #text+="资金的用途/备注是："+" ".join(remark)+";"
-                text += ",".join(remark) + ";"
-            if  row_obj["交易类型"]:
-                text +=  row_obj["交易类型"] + ";"
-        elif self.agent == "alipay":
-            pay_type = row_obj["收/支"]
-            if row_obj["商品说明"]:
-                #text+="资金的用途/备注是："+row_obj["商品说明"]+";"
-                text +=  row_obj["商品说明"] + ";"
-        elif self.agent == "wechat":
-            pay_type = row_obj["收/支/其他"]
-            #if row_obj["交易方式"] or row_obj["交易类型"]:
-            if row_obj["交易类型"]:
-                #text+="交易方式/类型是："+row_obj["交易类型"]+";"
-                #text += row_obj["交易类型"] + ' '+row_obj["交易方式"] + ";"
-                text += row_obj["交易类型"] + ";"
-        counterparty_key = "对方户名" if self.agent == "bank" else "交易对方"
-        if row_obj[counterparty_key]:
-            #text += '交易对方是:' + row_obj["交易对方"]
-            text +=row_obj[counterparty_key]
-        #if trader_nature:
-            #text += '交易对方的行业是:' + trader_nature
-            #text +=  trader_nature
-        #return self.et.get_account_labelv2(self.obj['res1']["account_type"], pay_type, text)
-        return LLMTool.get_account_labelv2(self.obj['res1']["account_type"], pay_type, text)
+    def predict_account_labelv2(self, row_obj,pay_type,trader_nature,row_data):
+
+
+        return self.get_label(pay_type,trader_nature,json.dumps(row_data,ensure_ascii=True))
+        #return LLMTool.get_account_labelv2(self.obj['res1']["account_type"], pay_type, text)
     
-    def predict_account_labelv3(self, row_obj, trader_nature):
-        text = ""
-        if self.agent == "bank":
-            pay_type = row_obj["收支类型"]
-            remark = list()
-            for k, v in row_obj.items():
-                if "备注" in k:
-                    remark.append(v)
-            if remark:
-                # text+="资金的用途/备注是："+" ".join(remark)+";"
-                text += ",".join(remark) + ";"
-            if row_obj["交易类型"]:
-                text += row_obj["交易类型"] + ";"
-        elif self.agent == "alipay":
-            pay_type = row_obj["收/支"]
-            if row_obj["商品说明"]:
-                # text+="资金的用途/备注是："+row_obj["商品说明"]+";"
-                text += row_obj["商品说明"] + ";"
-        elif self.agent == "wechat":
-            pay_type = row_obj["收/支/其他"]
-            # if row_obj["交易方式"] or row_obj["交易类型"]:
-            if row_obj["交易类型"]:
-                # text+="交易方式/类型是："+row_obj["交易类型"]+row_obj["交易方式"]+";"
-                # text += row_obj["交易类型"] + ' '+row_obj["交易方式"] + ";"
-                text += row_obj["交易类型"] + ";"
-        if trader_nature:
-            # text += '交易对方的行业是:' + trader_nature
-            text += trader_nature
-        return self.et.get_account_labelv3(self.obj['res1']["account_type"], pay_type, text)
+
         
     def get_recoged_obj(self):
         self.get_agent()
@@ -491,11 +594,12 @@ class RecogInfo:
 if __name__ == "__main__":
     #file_path = "data/output/攀德中国银行流水2021年.xlsx.txt"
     #file_path = "data/output/支付宝1.pdf.txt"
-    #file_path = "data/output/2022攀农业银行1-9月流水.xls.txt"
+    file_path = "data/output/2022攀农业银行1-9月流水.xls.txt"
     #file_path = "data/output/1671079320085_1588774.pdf.txt"
     #file_path = "data/output/支付宝流水.pdf.xlsx.txt"
     #file_path = "data/output/李佳蔚.xlsx.txt"
-    file_path = "data/outputa/建行.xls.txt"
+    #file_path = "data/outputa/建行.xls.txt"
+    #file_path = "data/output/张凌玮.xlsx.txt"
     torch.multiprocessing.set_start_method('spawn')
     #self.et.init()
     CONF.max_worker = 1

@@ -56,7 +56,7 @@ class EmbedingToolInfo:
             self.person_organization_embeding = EmbedingToolBasic.get_embeding_dict(dicts.person_organization_dict)
             self.org_code_name_dict,org_code_desc_dict = get_org_type_dict()
             self.org_type_embeding = EmbedingToolBasic.get_embeding_dict(org_code_desc_dict)
-            
+            '''
             asset_accounts_desc_dict = get_asset_accounts_desc_dict()
             self.asset_accounts_embeding_dict = {}
             self.asset_accounts_tags_embeding_list = {}
@@ -74,7 +74,7 @@ class EmbedingToolInfo:
                         embedings = EmbedingToolBasic.get_embeding_list(sub_strs)
                         self.asset_accounts_tags_embeding_list[person_org][income_expenditure][0].extend([k]*len(sub_strs))
                         self.asset_accounts_tags_embeding_list[person_org][income_expenditure][1].extend(embedings)
-                    
+        '''
         print('inited')
 
     def person_or_org(self,text):

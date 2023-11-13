@@ -92,8 +92,8 @@ class EmbedingToolBasic:
         embedings = list(class_dict.values())
         q = torch.from_numpy(np.asarray(text_emb, dtype=float)).to(cls.device)
         ks = torch.from_numpy(np.asarray(embedings, dtype=float)).to(cls.device)
-        similarities = torch.cosine_similarity(q, ks, dim=1).tolist()
-        
+        #similarities = torch.cosine_similarity(q, ks, dim=1).tolist()
+        similarities = torch.cosine_similarity(q, ks, dim=-1).tolist()
         ret = zip(keys,similarities)
         
         

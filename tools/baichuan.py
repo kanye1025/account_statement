@@ -26,6 +26,8 @@ class Baichuan:
         if torch.cuda.is_available() and CONF.GPU:
             self.model = self.model.cuda()
             self.device = torch.device("cuda")
+            #self.model = torch.tensor(self.model, device=self.device)
+            
             print("use gpu ")
         else:
             self.model = self.model.float()
