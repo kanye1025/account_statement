@@ -1,10 +1,13 @@
 # coding=utf-8
+#import os
+#import sys
+#sys.path.append(os.getcwd())
 import json
 from tools.embeding_tool_info import EmbedingToolInfo as EmbedingTool
 from tools.llm_tool import LLMTool
 from config.load_asset_accounts_dict import get_asset_accounts_dict
 from collections import Counter
-from .sample_writer import SampleWriter
+from recog_info.sample_writer import SampleWriter
 import Levenshtein
 from multiprocessing import Pool
 import datetime
@@ -12,8 +15,8 @@ from multiprocessing import cpu_count
 from collections import defaultdict
 from tools.embeding_tool import *
 from copy import  deepcopy
-from .prompt import Prompts
-from .recog_info_config  import load_label_config
+from recog_info.prompt import Prompts
+from recog_info.recog_info_config  import load_label_config
 from config.load_asset_accounts_dict import get_personal_consumption_dict
 from functools import lru_cache
 class process_row:
@@ -58,6 +61,8 @@ class process_row:
                 pay_type = row_obj["收/支"]
             elif self.ri.agent == "wechat":
                 pay_type = row_obj["收/支/其他"]
+            if pay_type not in ("收入","支出"):
+                pay_type = self.ri.recog_income_or_expenses(row_obj)
 
             account_label = {}
             account_label["accounting_item"],account_label["accouting_entry"] =self.ri.predict_account_labelv2(row_obj,pay_type,trader_nature,row_data)
@@ -455,7 +460,7 @@ class RecogInfo:
 
     def get_consume_label(self, row):
 
-        text = '\n'.join([f'{k}:{v}'for k,v in row.items()])
+        text = '\n'.join([f'{k}:{v}'for k,v in row.items() if v])
 
         prompt = Prompts.create_prompt(Prompts.consume_label_prompt,
                                        {"text": text, "key": str([i for i in self.consumption_index_dict.keys()])})
@@ -472,7 +477,7 @@ class RecogInfo:
         row = json.loads(row_str)
 
         if pay_type not in ("收入", "支出"):
-            return ""
+            return "",""
         row['对方所属行业'] = trader_nature
         person_org = self.obj['res1']["account_type"]
 
@@ -492,7 +497,7 @@ class RecogInfo:
 
         # print(f"{[person_org,pay_type,text]}-->{obj['标签类型']}")
         if obj["标签类型"] not in account_label_dict:
-            return ""
+            return "",""
         if obj["标签类型"] == "P03消费支出":
             ret = self.get_consume_label(row)
             print(ret)
@@ -558,7 +563,11 @@ class RecogInfo:
         #return LLMTool.get_account_labelv2(self.obj['res1']["account_type"], pay_type, text)
     
 
-        
+    def recog_income_or_expenses(self,row):
+        text = '\n'.join([f'{k}:{v}'for k,v in row.items() if v and v !='其他'])
+        prompt = Prompts.create_prompt(Prompts.income_or_expenses_prompt,{"text":text})
+        obj = self.llm.predict_respond_json(prompt)
+        return obj.get('收支类型','')
     def get_recoged_obj(self):
         self.get_agent()
         self.get_before_info()
@@ -596,13 +605,14 @@ class RecogInfo:
             raise Exception(f"money normalize failed: {money_str}")
 if __name__ == "__main__":
     #file_path = "data/output/攀德中国银行流水2021年.xlsx.txt"
-    #file_path = "data/output/支付宝1.pdf.txt"
-    file_path = "data/output/2022攀农业银行1-9月流水.xls.txt"
+    #file_path = "data/output/支付宝2.pdf.txt"
+    #file_path = "data/output/2022攀农业银行1-9月流水.xls.txt"
     #file_path = "data/output/1671079320085_1588774.pdf.txt"
     #file_path = "data/output/支付宝流水.pdf.xlsx.txt"
     #file_path = "data/output/李佳蔚.xlsx.txt"
     #file_path = "data/outputa/建行.xls.txt"
     #file_path = "data/output/张凌玮.xlsx.txt"
+    file_path = "data/output/微信交易明细.pdf.txt"
     torch.multiprocessing.set_start_method('spawn')
     #self.et.init()
     CONF.max_worker = 1

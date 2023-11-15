@@ -2,7 +2,7 @@ import os
 import json
 
 from split_table.table_recog import TableRecog
-from recog_info.recog_info import RecogInfo
+from recog_info.info_recog import RecogInfo
 from tools.embeding_tool_table import *
 from tqdm import tqdm
 import torch

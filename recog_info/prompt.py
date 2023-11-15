@@ -47,3 +47,14 @@ class Prompts(PromptBase):
 消费信息：
 {text}
 """
+
+
+    income_or_expenses_prompt = """请根据流水信息判断该流水是一笔支出，还是一笔收入，
+并返回如下json
+```{
+"收支类型":""
+}```
+取值只能为["支出","收入",""]中的一个,
+流水信息：
+{text}
+"""
