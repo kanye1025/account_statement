@@ -461,9 +461,9 @@ class RecogInfo:
     def get_consume_label(self, row):
 
         text = '\n'.join([f'{k}:{v}'for k,v in row.items() if v])
-
+        des = '\n'.join([f"{k}-->{v}" for k, v in self.consumption_dict.items()])
         prompt = Prompts.create_prompt(Prompts.consume_label_prompt,
-                                       {"text": text, "key": str([i for i in self.consumption_index_dict.keys()])})
+                                       {"text": text,"des":des, "key": str([i for i in self.consumption_index_dict.keys()])})
 
         obj = self.llm.predict_respond_json2(prompt, """{"消费类型":""")
         # print(f"{obj['消费类型']}")
@@ -612,8 +612,8 @@ if __name__ == "__main__":
     #file_path = "data/output/李佳蔚.xlsx.txt"
     #file_path = "data/outputa/建行.xls.txt"
     #file_path = "data/output/张凌玮.xlsx.txt"
-    #file_path = "data/output/微信交易明细.pdf.txt"
-    torch.multiprocessing.set_start_method('spawn')
+    file_path = "data/output/微信交易明细.pdf.txt"
+    #torch.multiprocessing.set_start_method('spawn')
     #self.et.init()
     CONF.max_worker = 1
     RecogInfo.init()

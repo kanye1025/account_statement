@@ -39,7 +39,9 @@ class Prompts(PromptBase):
 】
 """
 
-    consume_label_prompt = """请从下列消费信息中判断消费的类型，并返回如下json
+    consume_label_prompt = """已知消费类型定义（格式为 类型标签-->类型说明）：
+{des}
+请从下列消费信息中判断消费的类型，并返回如下json
 ```{
 "消费类型":""
 }```
@@ -47,6 +49,7 @@ class Prompts(PromptBase):
 消费信息：
 {text}
 """
+
 
 
     income_or_expenses_prompt = """请根据流水信息判断该流水是一笔支出，还是一笔收入，
