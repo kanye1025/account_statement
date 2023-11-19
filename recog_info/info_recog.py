@@ -605,14 +605,14 @@ class RecogInfo:
             raise Exception(f"money normalize failed: {money_str}")
 if __name__ == "__main__":
     #file_path = "data/output/攀德中国银行流水2021年.xlsx.txt"
-    #file_path = "data/output/支付宝2.pdf.txt"
+    file_path = "data/output/支付宝1.pdf.txt"
     #file_path = "data/output/2022攀农业银行1-9月流水.xls.txt"
     #file_path = "data/output/1671079320085_1588774.pdf.txt"
     #file_path = "data/output/支付宝流水.pdf.xlsx.txt"
     #file_path = "data/output/李佳蔚.xlsx.txt"
     #file_path = "data/outputa/建行.xls.txt"
     #file_path = "data/output/张凌玮.xlsx.txt"
-    file_path = "data/output/微信交易明细.pdf.txt"
+    #file_path = "data/output/微信交易明细.pdf.txt"
     torch.multiprocessing.set_start_method('spawn')
     #self.et.init()
     CONF.max_worker = 1
