@@ -65,13 +65,16 @@ class process_row:
                 pay_type = self.ri.recog_income_or_expenses(row_obj)
 
             account_label = {}
-            account_label["accounting_item"],account_label["accouting_entry"] =self.ri.predict_account_labelv2(row_obj,pay_type,trader_nature,row_data)
+            row_label = {}
+            trade_type, s_dir, s_tag =self.ri.predict_account_labelv2(row_obj,pay_type,trader_nature,row_data)
+            row_label['product type'] = trade_type
+            account_label["accounting_item"],account_label["accouting_entry"] =s_tag,s_dir
             if self.ri.account_class ==  "理财账户":
-                account_label["N-accounting_item"] = "Z0201理财资产"
+                account_label["N-accounting_item"] = "Z02理财资产"
             elif self.ri.account_class ==  "信用账户":
-                account_label["N-accounting_item"] = "F0401信用卡"
+                account_label["N-accounting_item"] = "F04信用卡"
             else:
-                account_label["N-accounting_item"] = "Z0701账户余额"
+                account_label["N-accounting_item"] = "Z08账户余额"
 
             if account_label["N-accounting_item"] == "F0401信用卡":
                 account_label["N-accouting_entry"] = "减少"  if pay_type == "收入"  else "增加"
@@ -81,7 +84,7 @@ class process_row:
 
             res2_row['account_label'] = account_label
 
-            row_label = {}
+
             row_label["header_row"] = res2_row['header_row']
             row_label["trader_nature"] = trader_nature
             row_label["in_spend_type"] = pay_type
@@ -497,7 +500,8 @@ class RecogInfo:
 
         # print(f"{[person_org,pay_type,text]}-->{obj['标签类型']}")
         if obj["标签类型"] not in account_label_dict:
-            return "",""
+            return "","","",""
+        '''
         if obj["标签类型"] == "P03消费支出":
             ret = self.get_consume_label(row)
             print(ret)
@@ -505,11 +509,13 @@ class RecogInfo:
             if self.sample_writer:
                 self.sample_writer.add_sample(self.file_name, ret, person_org, pay_type, row)
             return ret, "增加"
+        '''
         print(obj)
         print('-' * 20)
         if self.sample_writer:
             self.sample_writer.add_sample(self.file_name,obj["标签类型"],person_org,pay_type,row)
-        return obj["标签类型"], account_label_dict[obj["标签类型"]][1]
+        ( s_dir, s_tag) = account_label_dict[obj["标签类型"]][1]
+        return obj["标签类型"],  s_dir, s_tag
     def get_before_info(self):
         if self.texts:
             obj = LLMTool.recog_before_info2(self.agent,self.texts)
@@ -604,6 +610,8 @@ class RecogInfo:
         except:
             raise Exception(f"money normalize failed: {money_str}")
 if __name__ == "__main__":
+    import os
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
     #file_path = "data/output/攀德中国银行流水2021年.xlsx.txt"
     file_path = "data/output/支付宝1.pdf.txt"
     #file_path = "data/output/2022攀农业银行1-9月流水.xls.txt"

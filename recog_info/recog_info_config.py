@@ -2,21 +2,21 @@ import pandas as pd
 from collections import defaultdict
 from config.load_asset_accounts_dict import get_personal_consumption_dict
 def load_label_config():
-    df_book  = pd.ExcelFile('config/20231024会计分录&科目标签.xlsx')
+    df_book  = pd.ExcelFile('config/20231206会计分录&科目标签.xlsx')
     lable_conf = defaultdict(dict)
     dir_conf = defaultdict(dict)
     personal_consumption_dict, name_index_dict = get_personal_consumption_dict()
     for key in ('对私','对公'):
-        df = df_book.parse(f'生成会计分录（{key}）')
+        df = df_book.parse(f'会计分录识别（{key}）')
         df.fillna('',inplace=True)
-        for  in_or_ex,remark,using,industry,s_tag,s_dir in zip(
-                df["收支类型"],df["摘要/备注/附言"],df["资金的用途说明"],df["交易对象的行业分类"],df["S科目标签"],df["S分录方向"]):
+        for  in_or_ex,remark,trade_type,trade_code,trade_des,s_tag,s_dir in zip(
+                df["收支类型"],df["摘要/备注/附言"],df["商品分类"],df["商品分类代码"],df["商品说明"],df["科目标签-S"],df["分录方向-S"]):
             text = list()
             if remark:text.append(remark)
-            if using:text.append(using)
-            if industry:text.append(f"通常对方行业为{industry}")
+            if trade_des:text.append(trade_des)
+            trade_type = f'{trade_code} {trade_type}'
             #lable_conf[(key,in_or_ex)][s_tag] = {"remark":remark,"using":using,"industry":industry}
-            lable_conf[(key, in_or_ex)][s_tag] = (','.join(text),s_dir)
+            lable_conf[(key, in_or_ex)][trade_type] = (','.join(text),(s_dir,s_tag))
         '''
         for k,using in personal_consumption_dict.items():
             num = name_index_dict[k]+1
