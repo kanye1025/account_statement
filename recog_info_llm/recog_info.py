@@ -54,11 +54,17 @@ class process_row:
             else:
                 res3_row[index3] = row_obj[key]
                 if key == "交易日期":
-                    res3_row[index3] = self.ri.normalize_date_format(res3_row[index3])
+                    try:
+                        res3_row[index3] = self.ri.normalize_date_format(res3_row[index3])
+                    except Exception as e:
+                        print(e)
                 elif "金额" in key or "余额" in key:
                     if  "余额"  in key and  not res3_row[index3]:
                         continue
-                    res3_row[index3] = self.ri.normalize_money_format(res3_row[index3])
+                    try:
+                        res3_row[index3] = self.ri.normalize_money_format(res3_row[index3])
+                    except Exception as e:
+                        print(e)
         
         for k,v in row_obj.items():
             if "备注" in k:

@@ -25,7 +25,7 @@ class process_row:
     def __call__(self, res2_row):
         res3_row = {}
         res3_row["row_order"] = res2_row["row_order"]
-        row2_index = res2_row["row_order"].split('_')[1]
+        row2_index = str(int(res2_row["row_order"].split('_')[1]))
         res3_row["header_row"] = res2_row["header_row"]
         row_obj = {}
         
@@ -107,8 +107,10 @@ class process_row:
                 elif "金额" in key or "余额" in key:
                     if  "余额"  in key and  not res3_row[index3]:
                         continue
-                    res3_row[index3] = self.ri.normalize_money_format(res3_row[index3])
-        
+                    try:
+                        res3_row[index3] = self.ri.normalize_money_format(res3_row[index3])
+                    except Exception as e:
+                        print(e)
         for k,v in row_obj.items():
             if "备注" in k:
                 i+=1
@@ -144,7 +146,7 @@ class RecogInfo:
                     ]
     et = EmbedingTool()
     llm = LLMTool.llm
-    lable_conf = load_label_config()
+    lable_conf,_ = load_label_config()
     consumption_dict, consumption_index_dict = get_personal_consumption_dict()
     @classmethod
     def init(cls):
@@ -161,6 +163,8 @@ class RecogInfo:
         
     def __init__(self,obj,file_name = None,sample_writer = None):
         self.obj = obj
+        if len(obj['res1']['outside_infos']) == 2 and type(obj['res1']['outside_infos'][0]) == list:
+            obj['res1']['outside_infos'] = obj['res1']['outside_infos'][0]
         self.texts = '\n'.join([i['txt'] for i in obj['res1']['outside_infos']])
         if not self.texts.replace('\n', '').replace(' ', '').replace('\t', ''):
             self.texts = None
@@ -480,20 +484,23 @@ class RecogInfo:
         row = json.loads(row_str)
 
         if pay_type not in ("收入", "支出"):
-            return "",""
+            return "","",""
         row['对方所属行业'] = trader_nature
         person_org = self.obj['res1']["account_type"]
 
         person_org = "对私" if person_org == "对私" else "对公"  # unknown 也当对公处理
         account_label_dict = self.lable_conf[(person_org, pay_type)]
-        des = '\n'.join([f"{k}-->{v[0]}" for k, v in account_label_dict.items()])
-
+        #des = '\n'.join([f"{k}-->{v[0]}" for k, v in account_label_dict.items()])
 
         text = '\n'.join([f'{k}:{v}' for k,v in row.items() if v and '支出' not in v and '收入' not in v ])
 
         text = text.replace("货款", "货物款")
+        rec = self.et.label_recall(person_org,pay_type,text,top_k=5)
+        #des = '\n'.join([f"{k}-->{v[0]}" for k, v in account_label_dict.items()])
+        des = '\n'.join([f"{k}-->{account_label_dict[k][0]}"    for k,_ in rec])
+
         prompt = Prompts.create_prompt(Prompts.account_label_prompt,
-                                       {"text": text, "des": des, "key": str([i for i in account_label_dict.keys()])})
+                                       {"text": text, "des": des, "key": str([k for  k,_ in rec])})
         print(person_org,pay_type)
         print(text)
         obj = self.llm.predict_respond_json2(prompt, """{"标签类型":""")
@@ -620,7 +627,8 @@ if __name__ == "__main__":
     #file_path = "data/output/李佳蔚.xlsx.txt"
     #file_path = "data/outputa/建行.xls.txt"
     #file_path = "data/output/张凌玮.xlsx.txt"
-    file_path = "data/output/微信交易明细.pdf.txt"
+    #file_path = "data/output/微信交易明细.pdf.txt
+    #file_path = "data/request.txt"
     #torch.multiprocessing.set_start_method('spawn')
     #self.et.init()
     CONF.max_worker = 1

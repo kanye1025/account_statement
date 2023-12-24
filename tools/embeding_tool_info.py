@@ -3,6 +3,7 @@ from config.load_org_type_dict import get_org_type_dict
 from config.load_asset_accounts_dict import get_asset_accounts_desc_dict
 from toolkit.utils.process_exec import ExecProcess,process_exec
 from toolkit.utils.data_file import DataFile
+from recog_info.recog_info_config import load_label_config
 from config.config import CONF
 import os
 from copy import deepcopy
@@ -56,6 +57,10 @@ class EmbedingToolInfo:
             self.person_organization_embeding = EmbedingToolBasic.get_embeding_dict(dicts.person_organization_dict)
             self.org_code_name_dict,org_code_desc_dict = get_org_type_dict()
             self.org_type_embeding = EmbedingToolBasic.get_embeding_dict(org_code_desc_dict)
+            _,label_des = load_label_config()
+            self.label_embeding_dict = dict()
+            for k,d in label_des.items():
+                self.label_embeding_dict[k] = EmbedingToolBasic.get_embeding_dict(d)
             '''
             asset_accounts_desc_dict = get_asset_accounts_desc_dict()
             self.asset_accounts_embeding_dict = {}
@@ -76,6 +81,10 @@ class EmbedingToolInfo:
                         self.asset_accounts_tags_embeding_list[person_org][income_expenditure][1].extend(embedings)
         '''
         print('inited')
+
+    def label_recall(self,personal,in_or_ex,text,top_k=3):
+        e_dict = self.label_embeding_dict[(personal,in_or_ex)]
+        return EmbedingToolBasic.classify_by_embeding_dict(e_dict,text,top_k=top_k)
 
     def person_or_org(self,text):
         try:
