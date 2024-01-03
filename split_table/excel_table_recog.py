@@ -141,7 +141,7 @@ class ExcelTableRecog:
         
         ret_obj = {}
         ret_obj["res1"] = {}
-        ret_obj["res1"]["outside_infos"] = list()
+        ret_obj["res1"]["outside_infos"] = [[],[]]
         ret_obj['res2'] = list()
         for row in range(self.nrows):
             if row in row_infos:#表内
@@ -163,7 +163,7 @@ class ExcelTableRecog:
                         line.append(value)
                 if line:
                     line = ' '.join(line)
-                    ret_obj["res1"]["outside_infos"].append({"txt":line})
+                    ret_obj["res1"]["outside_infos"][0].append({"txt":line})
                     
         ret_obj['doc_tpye']="excel"
         ret_obj['page_sum'] = len(row_ranges)

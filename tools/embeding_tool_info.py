@@ -59,6 +59,7 @@ class EmbedingToolInfo:
             self.org_type_embeding = EmbedingToolBasic.get_embeding_dict(org_code_desc_dict)
             _,label_des = load_label_config()
             self.label_embeding_dict = dict()
+            self.head_embeding = EmbedingToolBasic.get_query_embeding(dicts.head)
             for k,d in label_des.items():
                 self.label_embeding_dict[k] = EmbedingToolBasic.get_embeding_dict(d)
             '''
@@ -161,9 +162,12 @@ class EmbedingToolInfo:
         alipay_type = EmbedingToolBasic.classify_by_embeding_dict(text=match_fields,
                                                                   class_dict=self.alipay_field_type_join_embeding)
         return alipay_type
-    
-    
-    
+
+
+    def get_head_index(self, rows):
+        row_texts = [','.join([str(v) for k ,v in row.items() if '.'  in k]) for row in rows]
+        results = EmbedingToolBasic.detect_text_in_list(self.head_embeding, row_texts)
+        return [r[0] for r in results]
 
     def recog_field(self, agent, head_dict):
         head_dict = deepcopy(head_dict)

@@ -59,7 +59,7 @@ class PDFTableRecog:
         tables = list()
         ret_obj = {}
         ret_obj["res1"] = {}
-        ret_obj["res1"]["outside_infos"] = list()
+        ret_obj["res1"]["outside_infos"] = [[],[]]
         ret_obj['res2'] = list()
         #首页
         page = self.pdf.pages[0]
@@ -87,7 +87,7 @@ class PDFTableRecog:
                     tables.append(table)
             
         for text in texts_before_table:
-            ret_obj["res1"]["outside_infos"].append({'txt':text})
+            ret_obj["res1"]["outside_infos"][0].append({'txt':text})
         for page_index,table in enumerate(tables):
             for row_index,row in enumerate(table):
                 row_order = '{:0>3d}'.format(page_index + 1) + '_' + str(row_index + 1)

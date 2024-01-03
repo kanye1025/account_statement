@@ -1,7 +1,7 @@
 # coding=utf-8
-#import os
-#import sys
-#sys.path.append(os.getcwd())
+import os
+import sys
+sys.path.append(os.getcwd())
 import json
 from tools.embeding_tool_info import EmbedingToolInfo as EmbedingTool
 from tools.llm_tool import LLMTool
@@ -19,10 +19,12 @@ from recog_info.prompt import Prompts
 from recog_info.recog_info_config  import load_label_config
 from config.load_asset_accounts_dict import get_personal_consumption_dict
 from functools import lru_cache
+import datetime
 class process_row:
     def __init__(self,ri):
         self.ri = ri
     def __call__(self, res2_row):
+        #begin = datetime.datetime.now()
         res3_row = {}
         res3_row["row_order"] = res2_row["row_order"]
         row2_index = str(int(res2_row["row_order"].split('_')[1]))
@@ -67,7 +69,7 @@ class process_row:
             account_label = {}
             row_label = {}
             trade_type, s_dir, s_tag =self.ri.predict_account_labelv2(row_obj,pay_type,trader_nature,row_data)
-            row_label['product type'] = trade_type
+            row_label['product_type'] = trade_type
             account_label["accounting_item"],account_label["accouting_entry"] =s_tag,s_dir
             if self.ri.account_class ==  "理财账户":
                 account_label["N-accounting_item"] = "Z02理财资产"
@@ -85,7 +87,7 @@ class process_row:
             res2_row['account_label'] = account_label
 
 
-            row_label["header_row"] = res2_row['header_row']
+            #row_label["header_row"] = res2_row['header_row']
             row_label["trader_nature"] = trader_nature
             row_label["in_spend_type"] = pay_type
             res2_row["row_label"] = row_label
@@ -119,7 +121,8 @@ class process_row:
                     res3_row[index3] = k
                 else:
                     res3_row[index3] = row_obj[k]
-        del res2_row['header_row']
+        #end = datetime.datetime.now()
+        #print(f'row time:{(end-begin).microseconds}')
         return res2_row,res3_row
 
 
@@ -152,7 +155,7 @@ class RecogInfo:
     def init(cls):
         
         LLMTool.init()
-        sub_count = min(cpu_count(), CONF.max_worker)
+        #sub_count = min(cpu_count(), CONF.max_worker)
         
         cls.et.init(CONF.load_embeding)
         #cls.pool = Pool(sub_count)
@@ -369,14 +372,21 @@ class RecogInfo:
         self.obj["res3"] = list()
         head_dict = dict()
         for row in self.obj["res2"]:
-            if row["header_row"] == True:
+            if 'header_row' in row and  row["header_row"] == True:
                 for k,v in row.items():
                     if '.' in k:
                         _,col_index =k.split('.')
                         head_dict[col_index] = v
             break
         if not head_dict:
-            raise Exception("not find any header_row")
+            row_indexes = self.et.get_head_index(self.obj["res2"])
+            for index in row_indexes:
+                self.obj["res2"][index]['header_row'] = True
+                for k,v in self.obj["res2"][index].items():
+                    if '.' in k:
+                        _,col_index =k.split('.')
+                        head_dict[col_index] = v
+
         head_dict = self.clear_head(head_dict)
         head_value_dict = self.gen_head_description(head_dict)
         self.field_index_dict,self.sub_type = self.recog_field(self.agent_type,head_dict,head_value_dict)
@@ -541,12 +551,12 @@ class RecogInfo:
                     min_distance = min([d for (_,_,d) in l])
                     for k,code,d in l:
                         if d == min_distance:
-                            obj["bank_name"] = code
+                            obj["bank_name"] = code+obj["bank_name"]
             self.obj['res1'].update(obj)
             if "begin_date" in self.obj['res1']:
-                self.obj['res1']["begin_date"] = self.normalize_date_format(self.obj['res1']["begin_date"])
+                self.obj['res1']["date_start"] = self.normalize_date_format(self.obj['res1']["begin_date"])
             if "end_date" in self.obj['res1']:
-                self.obj['res1']["end_date"] = self.normalize_date_format(self.obj['res1']["end_date"])
+                self.obj['res1']["date_end"] = self.normalize_date_format(self.obj['res1']["end_date"])
 
             self.account_class = self.get_account_class(obj["account_name"]) if obj["account_name"] else ""
         else:
@@ -586,6 +596,12 @@ class RecogInfo:
         self.get_before_info()
         self.field_align()
         del self.obj['res1']['outside_infos']
+        self.obj['outres1'] = self.obj['res1']
+        self.obj['outres2'] = self.obj['res2']
+        self.obj['outres3'] = self.obj['res3']
+        del self.obj['res1']
+        del self.obj['res2']
+        del self.obj['res3']
         return self.obj
     
     def normalize_date_format(self,date_str):
@@ -620,7 +636,8 @@ if __name__ == "__main__":
     import os
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
     #file_path = "data/output/攀德中国银行流水2021年.xlsx.txt"
-    file_path = "data/output/支付宝1.pdf.txt"
+    #file_path = "data/output/支付宝1.pdf.txt"
+    #file_path = "data/output/quick_test.txt"
     #file_path = "data/output/2022攀农业银行1-9月流水.xls.txt"
     #file_path = "data/output/1671079320085_1588774.pdf.txt"
     #file_path = "data/output/支付宝流水.pdf.xlsx.txt"
@@ -628,7 +645,7 @@ if __name__ == "__main__":
     #file_path = "data/outputa/建行.xls.txt"
     #file_path = "data/output/张凌玮.xlsx.txt"
     #file_path = "data/output/微信交易明细.pdf.txt
-    #file_path = "data/request.txt"
+    file_path = "data/request.txt"
     #torch.multiprocessing.set_start_method('spawn')
     #self.et.init()
     CONF.max_worker = 1

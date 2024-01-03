@@ -1,5 +1,5 @@
-from .pdf_table_recog import PDFTableRecog
-from .excel_table_recog import ExcelTableRecog
+from split_table.pdf_table_recog import PDFTableRecog
+from split_table.excel_table_recog import ExcelTableRecog
 import os
 from io import BytesIO
 class TableRecog:
@@ -20,8 +20,8 @@ class TableRecog:
     
 if __name__ =="__main__":
     
-    #file_path  = 'data/input/1672046917570_1364021.pdf'
-    file_path = 'data/inputa/建行.xls'
+    file_path  = 'data/input/支付宝交易明细.pdf'
+    #file_path = 'data/input/微信支付账单(20230427-20230727).xlsx'
     from tools.embeding_tool import *
     EmbedingToolBasic.init()
 
