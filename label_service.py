@@ -21,7 +21,7 @@ def _label_generation(obj):
 
     obj = RecogInfo(obj).get_recoged_obj()
 
-    res = {"success":True,"error-code":400,"message":"Success","data":obj}
+    res = {"success":True,"data":obj}
     return res
 
 

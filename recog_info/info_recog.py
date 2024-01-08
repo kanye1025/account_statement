@@ -555,8 +555,10 @@ class RecogInfo:
             self.obj['res1'].update(obj)
             if "begin_date" in self.obj['res1']:
                 self.obj['res1']["date_start"] = self.normalize_date_format(self.obj['res1']["begin_date"])
+                del self.obj['res1']["begin_date"]
             if "end_date" in self.obj['res1']:
                 self.obj['res1']["date_end"] = self.normalize_date_format(self.obj['res1']["end_date"])
+                del self.obj['res1']["end_date"]
 
             self.account_class = self.get_account_class(obj["account_name"]) if obj["account_name"] else ""
         else:
@@ -602,6 +604,8 @@ class RecogInfo:
         del self.obj['res1']
         del self.obj['res2']
         del self.obj['res3']
+        if 'agent_type' in self.obj:
+            del self.obj['agent_type']
         return self.obj
     
     def normalize_date_format(self,date_str):
@@ -645,7 +649,7 @@ if __name__ == "__main__":
     #file_path = "data/outputa/建行.xls.txt"
     #file_path = "data/output/张凌玮.xlsx.txt"
     #file_path = "data/output/微信交易明细.pdf.txt
-    file_path = "data/request.txt"
+    file_path = "data/cell-out01.json"
     #torch.multiprocessing.set_start_method('spawn')
     #self.et.init()
     CONF.max_worker = 1
