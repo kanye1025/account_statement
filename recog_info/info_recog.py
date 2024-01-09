@@ -314,6 +314,9 @@ class RecogInfo:
                 c.update([k.split('.')[1] for k,v in row.items() if '.' in k and v.replace('-','').replace('——','')
                          .replace('_','').strip()])
         valid_keys = set(c.keys())
+        for k,v in head_dict.items():
+            if '收入' in v or '支出' in v:
+                valid_keys.add(k)
         ret = {}
         for k,v in head_dict.items():
             if k in valid_keys:
@@ -338,7 +341,9 @@ class RecogInfo:
         for j,(k,head) in enumerate(head_dict.items()):
             if  k in sample_dict:
                 ret_obj[head] = sample_dict[k]
-            
+        for v in head_dict.values():
+            if ('支出' in v or '收入' in v ) and v not in ret_obj:
+                ret_obj[v] = ''
         return ret_obj
     
     
@@ -649,7 +654,7 @@ if __name__ == "__main__":
     #file_path = "data/outputa/建行.xls.txt"
     #file_path = "data/output/张凌玮.xlsx.txt"
     #file_path = "data/output/微信交易明细.pdf.txt
-    file_path = "data/cell-out01.json"
+    file_path = "data/test.json"
     #torch.multiprocessing.set_start_method('spawn')
     #self.et.init()
     CONF.max_worker = 1
