@@ -10,6 +10,7 @@ from copy import deepcopy
 import datetime
 from io import BytesIO
 import numpy as np
+from dateutil import parser
 class ExcelTableRecog:
     heads = "流水号/订单号,时间,收入,支出,备注/用途,余额/金额,对方账号,对方户名,收付款方式,开户机构/开户行,分类"
     #embeding = HuggingFaceEmbeddings(model_name=CONF.embeding_model_path)
@@ -65,7 +66,8 @@ class ExcelTableRecog:
             format = self.book.format_map[format.format_key]
             return format.type == 1
     def process_cell_datatime(self, value):
-        
+        if type(value) == str:
+            return parser.parse(value,fuzzy= False).strftime("%Y/%m/%d %H:%M:%S")
         date = datetime.datetime(year=1899, month=12, day=30) + datetime.timedelta(days=float(value))
         int_part,deci_part = str(value).split('.')
         int_part = int(int_part)
