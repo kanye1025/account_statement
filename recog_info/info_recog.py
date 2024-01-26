@@ -20,6 +20,7 @@ from recog_info.recog_info_config  import load_label_config
 from config.load_asset_accounts_dict import get_personal_consumption_dict
 from functools import lru_cache
 import datetime
+from config.config import CONF
 class process_row:
     def __init__(self,ri):
         self.ri = ri
@@ -68,23 +69,24 @@ class process_row:
 
             account_label = {}
             row_label = {}
-            trade_type, s_dir, s_tag =self.ri.predict_account_labelv2(row_obj,pay_type,trader_nature,row_data)
-            row_label['product_type'] = trade_type
-            account_label["accounting_item"],account_label["accouting_entry"] =s_tag,s_dir
-            if self.ri.account_class ==  "理财账户":
-                account_label["N-accounting_item"] = "Z02理财资产"
-            elif self.ri.account_class ==  "信用账户":
-                account_label["N-accounting_item"] = "F04信用卡"
-            else:
-                account_label["N-accounting_item"] = "Z08账户余额"
+            if CONF.label_detect:
+                trade_type, s_dir, s_tag =self.ri.predict_account_labelv2(row_obj,pay_type,trader_nature,row_data)
+                row_label['product_type'] = trade_type
+                account_label["accounting_item"],account_label["accouting_entry"] =s_tag,s_dir
+                if self.ri.account_class ==  "理财账户":
+                    account_label["N-accounting_item"] = "Z02理财资产"
+                elif self.ri.account_class ==  "信用账户":
+                    account_label["N-accounting_item"] = "F04信用卡"
+                else:
+                    account_label["N-accounting_item"] = "Z08账户余额"
 
-            if account_label["N-accounting_item"] == "F0401信用卡":
-                account_label["N-accouting_entry"] = "减少"  if pay_type == "收入"  else "增加"
-            else:
-                account_label["N-accouting_entry"] = "减少" if pay_type == "支出" else "增加"
+                if account_label["N-accounting_item"] == "F0401信用卡":
+                    account_label["N-accouting_entry"] = "减少"  if pay_type == "收入"  else "增加"
+                else:
+                    account_label["N-accouting_entry"] = "减少" if pay_type == "支出" else "增加"
 
 
-            res2_row['account_label'] = account_label
+                res2_row['account_label'] = account_label
 
 
             #row_label["header_row"] = res2_row['header_row']
@@ -153,7 +155,7 @@ class RecogInfo:
     consumption_dict, consumption_index_dict = get_personal_consumption_dict()
     @classmethod
     def init(cls):
-        
+        #if CONF.label_detect:
         LLMTool.init()
         #sub_count = min(cpu_count(), CONF.max_worker)
         

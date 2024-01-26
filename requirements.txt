@@ -12,7 +12,7 @@ accelerate
 python-Levenshtein
 pdfplumber
 sentence_transformers
-openpyxl
+openpyxl==3.1.2
 PyMuPdf
 bitsandbytes
 python-dateutil

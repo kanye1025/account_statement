@@ -15,5 +15,6 @@ class CONF:
     recog_info_embeding_path = './model/recog_info_embeding.bin'
     load_embeding = True
     max_worker = 1
-    
+
+    label_detect = False
     
